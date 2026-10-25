@@ -3,7 +3,7 @@
  *
  * Reglas (las valida el servidor):
  * - Solo un dueño de la mascota puede generar códigos de asignación.
- * - Un código sirve para una sola persona y vence a los 7 días.
+ * - Un código es de un solo uso: sirve para una sola persona.
  * - Cualquiera puede desasignarse, salvo que sea el último dueño: la mascota
  *   no puede quedar sin nadie que pueda administrarla.
  */
@@ -44,7 +44,7 @@ export async function crearInvitacion(mascota: Mascota, rol: RolMascota): Promis
  * Endpoint: GET /api/invitaciones/:token -> 200 Invitacion | 404 | 410
  * @param token código de asignación
  * @returns la invitación
- * @throws si no existe, ya se usó o venció
+ * @throws si no existe o ya se usó
  */
 export async function obtenerInvitacion(token: string): Promise<Invitacion> {
   return pedirJson<Invitacion>(`/api/invitaciones/${rutaToken(token)}`);

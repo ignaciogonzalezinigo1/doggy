@@ -12,7 +12,6 @@ import { useApp } from '@/context/AppContext';
 import { colors, radius, sizes, spacing, typography } from '@/theme';
 import type { Invitacion, Mascota, RolMascota } from '@/types/models';
 import { ROLES_MASCOTA, rolMascota } from '@/utils/etiquetas';
-import { formatearFecha } from '@/utils/fechas';
 import { PrimaryButton } from '../PrimaryButton';
 
 type Props = {
@@ -80,7 +79,7 @@ export function InvitarForm({ mascota }: Props) {
         </View>
 
         <Text style={styles.ayuda}>
-          Sirve para una sola persona y vence el {formatearFecha(invitacion.vence)}.
+          Es de un solo uso.
         </Text>
 
         <PrimaryButton title="Compartir código" icon="share" iconLeft onPress={handleCompartir} />

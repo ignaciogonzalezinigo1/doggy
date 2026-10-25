@@ -91,7 +91,7 @@ La tabla de la práctica Prisma muestra los códigos que usó esa práctica, per
 | 403 | con sesión, pero sin permiso sobre ese recurso |
 | 404 | no existe |
 | 409 | conflicto con el estado actual: email ya registrado, ya asignado a la mascota, único dueño que quiere desasignarse, reporte ya cerrado, mascota ya reportada |
-| 410 | código de asignación vencido o ya usado |
+| 410 | código de asignación ya usado |
 | 413 | la foto subida pesa más de 5 MB, o el body JSON más de 100 KB |
 | 500 | error imprevisto |
 
@@ -103,7 +103,8 @@ La tabla de la práctica Prisma muestra los códigos que usó esa práctica, per
 
 ### Contrato con doggy-backend
 
-- **Resuelta: 410 para links de asignación.** `GET /api/invitaciones/:token` y `POST /api/invitaciones/:token/aceptar` responden 410 si el código venció o ya se usó, y 404 si no existe.
+- **Resuelta: 410 para links de asignación.** `GET /api/invitaciones/:token` y `POST /api/invitaciones/:token/aceptar` responden 410 si el código ya se usó, y 404 si no existe.
+- **Resuelta: los códigos de asignación no vencen.** Son de un solo uso: sirven hasta que alguien los acepta y después responden 410. Se sacó el vencimiento a los 7 días (`Invitacion.vence` en el schema, `DIAS_VIGENCIA_INVITACION` y el 410 por vencido) y la app dice "Es de un solo uso" donde se genera y donde se ingresa el código.
 - **Resuelta (Etapa 3B): `PATCH` en vez de `PUT`.** `actualizarRegistro` y `actualizarTurno` usan `PATCH` con todos los datos del formulario; en el registro, los opcionales que no vienen se mandan como `null` para que se borren.
 - **Resuelta (Etapa 3B): flujos que escribían en el mock y leían de la API.** Alta de mascota y aceptar un código de asignación van contra la API (`POST /api/mascotas`, `GET /api/invitaciones/:token` y `POST /api/invitaciones/:token/aceptar`). Se borraron `mobile/src/data/mock.ts`, `simularRespuesta`, `siguienteId`, `idsMascotasDe` y `asignarCreador`; los datos de ejemplo viven en el seed de `doggy-backend`.
 - **Resuelta (Etapa 3B): 204 sin body.** `pedirSinRespuesta` (`services/http.ts`) solo revisa `response.ok` y no lee JSON. La usan los DELETE.

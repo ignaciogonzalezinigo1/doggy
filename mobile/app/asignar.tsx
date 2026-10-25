@@ -4,8 +4,7 @@
  * Es la pantalla que se abre al cargar un código de asignación desde Perfil.
  * Muestra a qué mascota invitaron al usuario y con qué rol (Dueño / Invitado)
  * y, al aceptar, la mascota pasa a su cuenta y se abre su perfil. Si el código
- * no existe, ya se usó o venció,
- * o el usuario ya está asignado, lo explica.
+ * no existe, ya se usó o el usuario ya está asignado, lo explica.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -24,7 +23,6 @@ import { useApp } from '@/context/AppContext';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { Invitacion } from '@/types/models';
 import { rolMascota } from '@/utils/etiquetas';
-import { formatearFecha } from '@/utils/fechas';
 import { volver } from '@/utils/navegacion';
 
 /** Diámetro de la foto de la mascota. */
@@ -143,7 +141,7 @@ export default function AsignarScreen() {
           </View>
           <Text style={styles.rolDescripcion}>{rol.descripcion}</Text>
           <Text style={styles.rolDescripcion}>Podés desasignarte cuando quieras desde tu perfil.</Text>
-          <Text style={styles.vence}>El código vence el {formatearFecha(invitacion.vence)}.</Text>
+          <Text style={styles.unSoloUso}>Es de un solo uso.</Text>
         </View>
 
         <PrimaryButton
@@ -228,7 +226,7 @@ const styles = StyleSheet.create({
     ...typography.bodySm,
     color: colors.onSurface,
   },
-  vence: {
+  unSoloUso: {
     ...typography.bodySm,
     color: colors.onSurfaceVariant,
   },

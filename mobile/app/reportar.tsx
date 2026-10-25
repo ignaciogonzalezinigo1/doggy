@@ -33,7 +33,6 @@ import { Input } from '@/components/Input';
 import { PermissionNotice } from '@/components/PermissionNotice';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { EscanerQr, ResultadoLectura } from '@/components/reporte/EscanerQr';
-import { EtiquetasInput } from '@/components/reporte/EtiquetasInput';
 import { MapaSelector } from '@/components/reporte/MapaSelector';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useApp } from '@/context/AppContext';
@@ -76,7 +75,6 @@ export default function ReportarScreen() {
   const [nombre, setNombre] = useState('');
   const [raza, setRaza] = useState('');
   const [descripcion, setDescripcion] = useState('');
-  const [etiquetas, setEtiquetas] = useState<string[]>([]);
   const [foto, setFoto] = useState<string | null>(null);
   const [coords, setCoords] = useState<Coordenadas>(CENTRO_CABA);
   const [direccion, setDireccion] = useState<DireccionLegible | null>(null);
@@ -204,7 +202,6 @@ export default function ReportarScreen() {
         raza: limpiarTexto(raza) || 'Sin especificar',
         descripcion: limpiarTexto(descripcion, true),
         foto,
-        etiquetas,
         lat: coords.lat,
         lng: coords.lng,
         // Si no se pudo traducir el punto a un barrio, queda la ciudad.
@@ -308,7 +305,6 @@ export default function ReportarScreen() {
               multiline
               maxLength={LIMITES.descripcion}
             />
-            <EtiquetasInput etiquetas={etiquetas} onChange={setEtiquetas} />
           </View>
 
           {/* Dónde se la encontró */}

@@ -7,7 +7,7 @@
  * Todos los campos de texto tienen un largo máximo (`LIMITES`, que también se
  * usa como `maxLength` de los inputs) y una lista de caracteres permitidos
  * según lo que se carga: nombres de personas solo con letras, nombres de
- * mascotas y etiquetas con letras y números, y textos libres con letras,
+ * mascotas con letras y números, y textos libres con letras,
  * números y signos de puntuación comunes. Así no se cargan emojis, símbolos
  * raros, caracteres invisibles ni textos hechos solo de signos ("!!!!").
  * Antes de guardar, `limpiarTexto` saca los espacios de más.
@@ -27,7 +27,6 @@ export const LIMITES = {
   senas: 200,
   descripcion: 300,
   infoAdicional: 300,
-  etiqueta: 24,
   motivo: 80,
   lugar: 80,
   nombreRegistro: 60,
@@ -257,20 +256,6 @@ export function validarRaza(texto: string, requerido = true): string | undefined
     requerido: requerido ? 'Ingresá la raza (o "Mestizo").' : undefined,
     min: 3,
     max: LIMITES.raza,
-    formato: 'nombre',
-  });
-}
-
-/**
- * Valida una etiqueta del reporte ("Collar rojo").
- * @param texto texto ingresado
- * @returns mensaje de error o undefined
- */
-export function validarEtiqueta(texto: string): string | undefined {
-  return validarTexto(texto, {
-    requerido: 'Escribí la etiqueta.',
-    min: 2,
-    max: LIMITES.etiqueta,
     formato: 'nombre',
   });
 }

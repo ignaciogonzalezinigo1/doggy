@@ -140,7 +140,7 @@ export type Cuidador = {
 
 /**
  * Código de asignación de una mascota. Lo genera un dueño con un rol; quien lo
- * carga y lo acepta queda asignado con ese rol. Sirve para una sola persona y vence.
+ * carga y lo acepta queda asignado con ese rol. Es de un solo uso.
  */
 export type Invitacion = {
   /** Código de asignación. */
@@ -149,8 +149,6 @@ export type Invitacion = {
   rol: RolMascota;
   /** Dueño que generó el código. */
   creadaPorId: number;
-  /** Fecha ISO de vencimiento. */
-  vence: string;
   usada: boolean;
   /** Datos de la mascota para mostrar la invitación antes de aceptarla. */
   mascota: Pick<Mascota, 'nombre' | 'raza' | 'foto'>;
@@ -160,7 +158,8 @@ export type Invitacion = {
 export type NuevaMascota = Omit<Mascota, 'id' | 'codigo' | 'tutorId'>;
 export type NuevoRegistro = Omit<RegistroSanitario, 'id'>;
 export type NuevoTurno = Omit<Turno, 'id'>;
-export type NuevoReporte = Omit<ReportePerdida, 'id' | 'autorId'>;
+/** La app ya no carga etiquetas en los reportes: solo se muestran las que ya tenían. */
+export type NuevoReporte = Omit<ReportePerdida, 'id' | 'autorId' | 'etiquetas'>;
 /**
  * Cambios de un reporte publicado (PATCH): lo que no viene no se toca y
  * `infoAdicional: null` la borra (un `undefined` no viaja en el JSON).

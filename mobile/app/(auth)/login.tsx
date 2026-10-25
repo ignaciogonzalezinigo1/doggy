@@ -81,14 +81,6 @@ export default function LoginScreen() {
     }
   };
 
-  /** La recuperación de contraseña necesita backend; por ahora solo avisa. */
-  const handleOlvide = () => {
-    Alert.alert(
-      'Recuperar contraseña',
-      'Disponible próximamente. Vas a poder recibir un email para crear una nueva contraseña.',
-    );
-  };
-
   /** Lleva a la pantalla de registro. */
   const handleRegistrarme = () => router.push('/registro');
 
@@ -145,14 +137,6 @@ export default function LoginScreen() {
           returnKeyType="go"
           onSubmitEditing={handleIngresar}
         />
-
-        <Pressable onPress={handleOlvide} style={styles.forgot} hitSlop={spacing.sm}>
-          {({ pressed }) => (
-            <Text style={[styles.forgotText, pressed && styles.linkPressed]}>
-              ¿Olvidaste tu contraseña?
-            </Text>
-          )}
-        </Pressable>
 
         <PrimaryButton
           title="Ingresar"
@@ -212,13 +196,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     backgroundColor: colors.surfaceBright,
     ...shadows.level2,
-  },
-  forgot: {
-    alignSelf: 'flex-end',
-  },
-  forgotText: {
-    ...typography.labelSm,
-    color: colors.primary,
   },
   submit: {
     marginTop: spacing.stackSm,

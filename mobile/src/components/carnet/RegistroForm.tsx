@@ -20,7 +20,7 @@ import { useConfirmarBorrado } from '@/hooks/useConfirmarBorrado';
 import { colors, spacing, typography } from '@/theme';
 import type { NuevoRegistro, RegistroSanitario, TipoRegistro } from '@/types/models';
 import { TIPOS_REGISTRO } from '@/utils/etiquetas';
-import { enmascararFecha, fechaIngresadaAIso, formatearFecha } from '@/utils/fechas';
+import { enmascararFecha, fechaATexto, fechaIngresadaAIso, formatearFecha, hoy } from '@/utils/fechas';
 import {
   LIMITES,
   limpiarTexto,
@@ -66,9 +66,13 @@ export function RegistroForm({ mascotaId, tipoInicial, registro, onGuardado, onB
 
   // --- Estado ---
   // Las fechas se editan como dd/mm/aaaa: las del registro se pasan a ese formato.
+  // Un registro nuevo arranca con la fecha de hoy en hora local (no con toISOString,
+  // que después de las 21 en Argentina ya da el día siguiente).
   const [tipo, setTipo] = useState<TipoRegistro>(registro?.tipo ?? tipoInicial);
   const [nombre, setNombre] = useState(registro?.nombre ?? '');
-  const [fecha, setFecha] = useState(registro ? formatearFecha(registro.fecha) : '');
+  const [fecha, setFecha] = useState(() =>
+    registro ? formatearFecha(registro.fecha) : fechaATexto(hoy()),
+  );
   const [profesional, setProfesional] = useState(registro?.profesional ?? '');
   const [proximaDosis, setProximaDosis] = useState(
     registro?.proximaDosis ? formatearFecha(registro.proximaDosis) : '',

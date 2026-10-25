@@ -7,12 +7,12 @@
  *   su perfil) y los datos salen de su perfil, sin volver a cargarlos,
  * - marca en el mapa dónde la vio por última vez y un radio de búsqueda
  *   (200 m a 2 km) que se dibuja como un círculo alrededor del punto,
- * - suma información del día: ropa, arnés, cómo reacciona, etiquetas.
+ * - suma información del día: ropa, arnés, cómo reacciona.
  * Al publicar se crea el reporte "perdido", vibra, se cierra el modal y se
  * muestra el nuevo marker (con su círculo) en Perdidos.
  *
  * Si llega `reporteId`, la pantalla edita ese reporte en vez de crear uno:
- * arranca con su punto, radio, información y etiquetas, la mascota queda fija
+ * arranca con su punto, radio e información, la mascota queda fija
  * y "Guardar cambios" lo actualiza. "Ya apareció" pide confirmación, cierra
  * el reporte (sale del mapa) y cierra el modal.
  */
@@ -37,7 +37,6 @@ import { EstadoVacio } from '@/components/EstadoVista';
 import { Input } from '@/components/Input';
 import { PermissionNotice } from '@/components/PermissionNotice';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { EtiquetasInput } from '@/components/reporte/EtiquetasInput';
 import { MapaSelector } from '@/components/reporte/MapaSelector';
 import { ResumenMascota } from '@/components/reporte/ResumenMascota';
 import { SelectorMascota } from '@/components/reporte/SelectorMascota';
@@ -79,7 +78,6 @@ export default function MiMascotaPerdidaScreen() {
   );
   const [direccion, setDireccion] = useState<DireccionLegible | null>(null);
   const [infoAdicional, setInfoAdicional] = useState(() => editado?.infoAdicional ?? '');
-  const [etiquetas, setEtiquetas] = useState<string[]>(() => editado?.etiquetas ?? []);
   const [errorInfo, setErrorInfo] = useState<string | undefined>();
   const [enviando, setEnviando] = useState(false);
   // Si el usuario movió el pin (o se edita un punto ya publicado), el GPS ya no lo pisa.
@@ -163,7 +161,6 @@ export default function MiMascotaPerdidaScreen() {
         raza: mascota.raza,
         descripcion: mascota.senas,
         foto: mascota.foto,
-        etiquetas,
         lat: coords.lat,
         lng: coords.lng,
         // Si no se pudo traducir el punto a un barrio, queda la ciudad.
@@ -197,7 +194,6 @@ export default function MiMascotaPerdidaScreen() {
     setEnviando(true);
     try {
       await editarReporte(editado.id, {
-        etiquetas,
         lat: coords.lat,
         lng: coords.lng,
         // Si no se pudo traducir el punto, queda la zona que ya tenía.
@@ -359,7 +355,6 @@ export default function MiMascotaPerdidaScreen() {
               multiline
               maxLength={LIMITES.infoAdicional}
             />
-            <EtiquetasInput etiquetas={etiquetas} onChange={setEtiquetas} />
           </View>
 
           {editado ? (

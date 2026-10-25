@@ -46,8 +46,8 @@ Porque no se borra: se le pone fecha en `cerradoEn` y queda como historial. `GET
 401: no sé quién sos (sin token, inválido, vencido o cerrado). 403: sé quién sos, pero no podés tocar eso (por ejemplo, editar una mascota a la que no estás asignado).
 → `doggy-backend/src/middlewares/requiereUsuario.ts` (401), `doggy-backend/src/lib/asignaciones.ts` (403)
 
-**¿Por qué 410 y no 404 para un código vencido?**
-404 es "nunca existió". 410 (Gone) es "existió pero ya no sirve": así la app puede decir "este código venció o ya se usó" en vez de "no existe".
+**¿Por qué 410 y no 404 para un código ya usado?**
+404 es "nunca existió". 410 (Gone) es "existió pero ya no sirve": así la app puede decir "este código ya se usó" en vez de "no existe". Los códigos son de un solo uso y no vencen.
 → `doggy-backend/src/rutas/invitaciones.ts`
 
 **¿Cómo maneja la app un 204?**
