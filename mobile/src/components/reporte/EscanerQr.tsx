@@ -20,7 +20,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { CameraType, CameraView, scanFromURLAsync, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import { ComponentProps, useRef, useState } from 'react';
+import { ComponentProps, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useFototeca } from '@/hooks/useFototeca';
@@ -40,6 +40,8 @@ export type ResultadoLectura =
 type Props = {
   /** Recibe el texto del QR, busca la mascota y dice si la encontró. */
   onLectura: (codigo: string) => Promise<ResultadoLectura>;
+  /** true para abrir la cámara apenas se monta, si ya hay permiso ("Escanear otra"). */
+  abrirAlMontar?: boolean;
 };
 
 /** Título del aviso según por qué falló la lectura. */
@@ -59,9 +61,10 @@ const ESQUINA = 24;
 /**
  * Escáner de QR con cámara, linterna, cámara frontal y lectura desde imagen.
  * @param props.onLectura callback con el código leído
+ * @param props.abrirAlMontar abre la cámara al montarse si ya hay permiso
  * @returns la sección del escáner
  */
-export function EscanerQr({ onLectura }: Props) {
+export function EscanerQr({ onLectura, abrirAlMontar = false }: Props) {
   const [permiso, pedirPermiso] = useCameraPermissions();
   const fototeca = useFototeca({ recortar: false });
 
@@ -75,6 +78,16 @@ export function EscanerQr({ onLectura }: Props) {
   const [buscando, setBuscando] = useState(false);
   // El ref corta en el acto; el estado además saca el callback del CameraView.
   const bloqueoRef = useRef(false);
+  /** true si ya se abrió sola la cámara (solo pasa una vez por montaje). */
+  const abiertaAlMontar = useRef(false);
+
+  // "Escanear otra": vuelve directo a la cámara. El permiso llega asíncrono,
+  // por eso se espera a que esté; si no se dio, queda el botón "Escanear".
+  useEffect(() => {
+    if (!abrirAlMontar || abiertaAlMontar.current || !permiso?.granted) return;
+    abiertaAlMontar.current = true;
+    setActivo(true);
+  }, [abrirAlMontar, permiso]);
 
   // --- Handlers ---
   /** Vuelve a habilitar la lectura (después de un código inválido). */

@@ -167,8 +167,16 @@ export type Invitacion = {
 export type NuevaMascota = Omit<Mascota, 'id' | 'codigo' | 'tutorId'>;
 export type NuevoRegistro = Omit<RegistroSanitario, 'id'>;
 export type NuevoTurno = Omit<Turno, 'id'>;
-/** La app ya no carga etiquetas en los reportes: solo se muestran las que ya tenían. */
-export type NuevoReporte = Omit<ReportePerdida, 'id' | 'autorId' | 'etiquetas' | 'contacto'>;
+/**
+ * Reporte nuevo. La app ya no carga etiquetas: solo se muestran las que ya
+ * tenían. Con `mascotaId`, el nombre y la raza no hace falta mandarlos: el
+ * servidor los toma de la mascota (y los ignora si vienen).
+ */
+export type NuevoReporte = Omit<
+  ReportePerdida,
+  'id' | 'autorId' | 'etiquetas' | 'contacto' | 'nombre' | 'raza'
+> &
+  Partial<Pick<ReportePerdida, 'nombre' | 'raza'>>;
 /**
  * Cambios de un reporte publicado (PATCH): lo que no viene no se toca y
  * `infoAdicional: null` la borra (un `undefined` no viaja en el JSON).

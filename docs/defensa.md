@@ -105,6 +105,13 @@ Solo se escribe sobre mascotas a las que el usuario está asignado, como dueño 
 **¿Cómo identifica el escáner a un perro ajeno si solo ves tus mascotas?**
 Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. Devuelve solo los datos públicos (nombre, edad, raza, señas, foto, código) y el nombre del tutor, sin carnet ni otros datos del dueño.
 
+**¿Se puede avisar que encontraste una mascota que no está perdida?**
+Sí, a propósito: la familia puede no saber todavía que se escapó, y como no está perdida no se muestra su teléfono, así que el aviso es la única forma de contactarla. Quien la encontró queda visible para la familia (nombre y teléfono), y la app se lo dice antes de publicar. Hay un solo aviso activo por mascota: el segundo da 409 "Ya le avisaron a su familia.".
+→ `doggy-backend/src/rutas/reportes.ts` (POST), `doggy/mobile/app/reportar.tsx`
+
+**¿Quien escanea el QR puede cambiar los datos de la mascota?**
+No. La app los muestra de solo lectura y no los manda, y el servidor, si el reporte trae `mascotaId`, toma el nombre y la raza de la mascota e ignora los del body. Editar la mascota en sí nunca fue posible: el PATCH de una mascota ajena da 403.
+
 **¿Quién ve el teléfono del dueño al escanear el QR?**
 Solo si la mascota tiene un reporte de perdida activo (o si quien escanea está asignado a ella). Lo filtra el servidor en `aMascotaPublica`: si lo ocultara solo la app, igual viajaría en la respuesta y cualquiera podría leerlo llamando a la API.
 → `doggy-backend/src/rutas/mascotas.ts`, `doggy-backend/src/respuestas.ts` (`aMascotaPublica`)

@@ -3,16 +3,26 @@
  *
  * Reporte de alguien que encontró un perro en la calle (el de una mascota
  * propia es `mi-mascota-perdida.tsx`). Junta los tres componentes nativos:
- * - cámara: escanear el QR de la chapita para identificar a la mascota y
- *   autocompletar sus datos,
+ * - cámara: escanear el QR de la chapita para identificar a la mascota,
  * - cámara y fototeca: sacarle una foto en el momento o elegir una de la galería,
  * - GPS: precargar en el mini mapa el punto donde se la encontró.
- * Al identificarla por el QR se muestra quién es: nombre, edad, raza, foto y
- * el nombre de su tutor. Si está reportada como perdida, el servidor suma el
- * teléfono del tutor y aparece como link para llamarlo; si no, no lo manda.
- * El nombre es opcional porque quien la encuentra muchas veces no lo sabe.
- * Al confirmar se crea el reporte "encontrado", vibra, se cierra el modal y
- * se muestra el nuevo marker en Perdidos.
+ * Apenas se lee un QR válido se cierra la cámara y aparece la tarjeta de la
+ * mascota, de solo lectura: nombre, edad, raza, foto y el nombre de su tutor.
+ * Si está reportada como perdida, el servidor suma el teléfono del tutor y
+ * aparece como link para llamarlo; si no, no lo manda. Los datos de la
+ * mascota no se editan ni se envían (el servidor los toma de la mascota):
+ * quien la encontró completa solo el hallazgo, que es el comentario, una foto
+ * del momento si tiene y el punto en el mapa. "Escanear otra" vuelve a la cámara.
+ *
+ * Se puede avisar aunque la mascota no esté perdida, a propósito: puede que su
+ * familia todavía no sepa que se escapó, y es la única forma de avisarle
+ * porque en ese caso no se muestra su teléfono. Si ya tiene un aviso de
+ * encontrada activo, no se permite otro ("Ya le avisaron a su familia", el
+ * mismo texto que el 409 del servidor).
+ *
+ * Sin QR se cargan nombre (opcional, porque quien la encuentra muchas veces no
+ * lo sabe), raza y descripción. Al confirmar se crea el reporte "encontrado",
+ * vibra, se cierra el modal y se muestra el nuevo marker en Perdidos.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -49,6 +59,7 @@ import type { MascotaPublica } from '@/types/models';
 import { CODIGO_MASCOTA_REGEX } from '@/utils/codigos';
 import { textoEdad } from '@/utils/etiquetas';
 import { CENTRO_CABA } from '@/utils/mapa';
+import { reporteActivo } from '@/utils/selectores';
 import {
   LIMITES,
   limpiarTexto,
@@ -65,13 +76,15 @@ type Errores = {
 
 /** Nombre que se publica si quien la encontró no lo sabe. */
 const SIN_NOMBRE = 'Sin identificar';
+/** Aviso si la mascota ya tiene un reporte de encontrada activo (el mismo texto que el 409 del servidor). */
+const MENSAJE_YA_AVISARON = 'Ya le avisaron a su familia.';
 
 /**
  * Pantalla del reporte de mascota encontrada.
  * @returns el formulario de reporte
  */
 export default function ReportarScreen() {
-  const { buscarMascotaPorCodigo, crearReporte } = useApp();
+  const { reportes, buscarMascotaPorCodigo, crearReporte } = useApp();
   const gps = useUbicacion({ automatico: true });
   const fototeca = useFototeca();
   const insets = useSafeAreaInsets();
@@ -86,27 +99,44 @@ export default function ReportarScreen() {
   const [foto, setFoto] = useState<string | null>(null);
   const [coords, setCoords] = useState<Coordenadas>(CENTRO_CABA);
   const [direccion, setDireccion] = useState<DireccionLegible | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
   const [errores, setErrores] = useState<Errores>({});
   const [enviando, setEnviando] = useState(false);
+  /** true después de "Escanear otra": el escáner vuelve a abrir la cámara solo. */
+  const [reabrirCamara, setReabrirCamara] = useState(false);
   // Si el usuario movió el pin, la posición del GPS ya no lo pisa.
   const pinAjustado = useRef(false);
 
-  // --- Precarga ---
+  // --- Datos derivados ---
+  // Con QR, lo que ya se sabe de la mascota sale de los reportes activos.
+  const perdida = identificada ? !!reporteActivo(reportes, identificada.id) : false;
+  const yaAvisaron = identificada
+    ? reportes.some((r) => r.estado === 'encontrado' && r.mascotaId === identificada.id)
+    : false;
+
+  // --- Identificación por QR ---
   /**
-   * Completa el formulario con los datos de la mascota identificada por el QR.
-   * Su id viaja como `mascotaId` del reporte, aunque sea de otra familia.
+   * Muestra la mascota identificada por el QR. Su id viaja como `mascotaId`
+   * del reporte, aunque sea de otra familia; sus datos no se cargan en el
+   * formulario porque no se editan.
    * @param mascota datos públicos de la mascota que devolvió el servidor
    */
-  const precargar = useCallback((mascota: MascotaPublica) => {
+  const identificar = useCallback((mascota: MascotaPublica) => {
     setMascotaId(mascota.id);
     setIdentificada(mascota);
-    setNombre(mascota.nombre);
-    setRaza(mascota.raza);
-    setDescripcion(mascota.senas);
-    setFoto(mascota.foto);
+    setDescripcion('');
+    setFoto(null);
     setErrores({});
   }, []);
+
+  /** Descarta la mascota identificada y vuelve a la cámara. */
+  const escanearOtra = () => {
+    setMascotaId(null);
+    setIdentificada(null);
+    setDescripcion('');
+    setFoto(null);
+    setErrores({});
+    setReabrirCamara(true);
+  };
 
   // Cuando llega la posición del GPS, se usa como el punto donde se la encontró.
   useEffect(() => {
@@ -147,8 +177,7 @@ export default function ReportarScreen() {
           mensaje: `No encontramos ninguna mascota registrada con el código ${normalizado}.`,
         };
       }
-      precargar(mascota);
-      setAviso(`Identificamos a ${mascota.nombre}. Revisá los datos y confirmá el reporte.`);
+      identificar(mascota);
       return { ok: true };
     } catch (e) {
       // Si el servidor respondió, es un error suyo; si no, no hubo conexión.
@@ -187,12 +216,16 @@ export default function ReportarScreen() {
 
   /** Valida, crea el reporte, vibra y vuelve a Perdidos mostrando el nuevo marker. */
   const handleReportar = async () => {
-    // Nombre y raza son opcionales (quien la encontró puede no saberlos), pero si se cargan se validan.
+    if (yaAvisaron) return;
+    // Sin QR, nombre y raza son opcionales (quien la encontró puede no saberlos), pero si se cargan se validan.
+    // Con QR no se cargan: el servidor los toma de la mascota.
     const nuevos: Errores = {
-      nombre: validarNombreMascota(nombre, false),
-      raza: validarRaza(raza, false),
+      nombre: identificada ? undefined : validarNombreMascota(nombre, false),
+      raza: identificada ? undefined : validarRaza(raza, false),
       descripcion: validarTexto(descripcion, {
-        requerido: 'Describí cómo es para que su familia la reconozca.',
+        requerido: identificada
+          ? 'Contá dónde y cómo la encontraste.'
+          : 'Describí cómo es para que su familia la reconozca.',
         min: 5,
         max: LIMITES.descripcion,
         formato: 'texto',
@@ -207,8 +240,10 @@ export default function ReportarScreen() {
       const reporte = await crearReporte({
         mascotaId,
         estado: 'encontrado',
-        nombre: limpiarTexto(nombre) || SIN_NOMBRE,
-        raza: limpiarTexto(raza) || 'Sin especificar',
+        ...(!identificada && {
+          nombre: limpiarTexto(nombre) || SIN_NOMBRE,
+          raza: limpiarTexto(raza) || 'Sin especificar',
+        }),
         descripcion: limpiarTexto(descripcion, true),
         foto,
         lat: coords.lat,
@@ -248,132 +283,201 @@ export default function ReportarScreen() {
             </Text>
           </View>
 
-          <EscanerQr onLectura={handleLectura} />
+          {identificada ? (
+            /* Quién es: lo que el servidor deja ver de una mascota ajena, de solo lectura */
+            <View style={styles.card}>
+              <View style={styles.identificada}>
+                <Avatar foto={identificada.foto} nombre={identificada.nombre} size={sizes.avatarLg - 32} />
+                <View style={styles.identificadaTexto}>
+                  <Text style={styles.identificadaNombre}>{identificada.nombre}</Text>
+                  <Text style={styles.identificadaDato}>
+                    {`${identificada.raza} · ${textoEdad(identificada.edad)}`}
+                  </Text>
+                  <Text style={styles.identificadaDato}>{`Su familia: ${identificada.dueno.nombre}`}</Text>
+                  {perdida && (
+                    <Text style={styles.identificadaPerdida}>Está perdida: avisale a su familia.</Text>
+                  )}
+                  {identificada.dueno.telefono && (
+                    <LinkTelefono telefono={identificada.dueno.telefono} nombre={identificada.dueno.nombre} />
+                  )}
+                </View>
+              </View>
+              <PrimaryButton
+                title="Escanear otra"
+                icon="qr-code-scanner"
+                iconLeft
+                variant="outline"
+                size="sm"
+                onPress={escanearOtra}
+                style={styles.escanearOtra}
+              />
+            </View>
+          ) : (
+            <EscanerQr onLectura={handleLectura} abrirAlMontar={reabrirCamara} />
+          )}
 
-          {aviso && (
+          {yaAvisaron && (
             <View style={styles.aviso} accessibilityLiveRegion="polite">
               <MaterialIcons name="check-circle" size={sizes.iconMd} color={colors.primaryContainer} />
-              <Text style={styles.avisoTexto}>{aviso}</Text>
+              <Text style={styles.avisoTexto}>{MENSAJE_YA_AVISARON}</Text>
             </View>
           )}
 
-          {/* Quién es: lo que el servidor deja ver de una mascota ajena */}
-          {identificada && (
-            <View style={[styles.card, styles.identificada]}>
-              <Avatar foto={identificada.foto} nombre={identificada.nombre} size={sizes.avatarLg - 32} />
-              <View style={styles.identificadaTexto}>
-                <Text style={styles.identificadaNombre}>{identificada.nombre}</Text>
-                <Text style={styles.identificadaDato}>
-                  {`${identificada.raza} · ${textoEdad(identificada.edad)}`}
-                </Text>
-                <Text style={styles.identificadaDato}>{`Su familia: ${identificada.dueno.nombre}`}</Text>
-                {identificada.dueno.telefono && (
-                  <>
-                    <Text style={styles.identificadaPerdida}>Está perdida: avisale a su familia.</Text>
-                    <LinkTelefono telefono={identificada.dueno.telefono} nombre={identificada.dueno.nombre} />
-                  </>
-                )}
+          {identificada ? (
+            !yaAvisaron && (
+              /* El hallazgo: lo único que completa quien la encontró */
+              <View style={styles.card}>
+                <Input
+                  label="¿Dónde y cómo la encontraste?"
+                  placeholder="Ej: la vi en la plaza, tiene collar rojo"
+                  value={descripcion}
+                  onChangeText={(texto) => {
+                    setDescripcion(texto);
+                    if (errores.descripcion) setErrores((prev) => ({ ...prev, descripcion: undefined }));
+                  }}
+                  error={errores.descripcion}
+                  multiline
+                  maxLength={LIMITES.descripcion}
+                />
+                <View style={styles.fotoFila}>
+                  <FotoEditable
+                    foto={foto}
+                    nombre={identificada.nombre}
+                    onPress={handleFoto}
+                    cargando={fototeca.eligiendo}
+                    size={sizes.avatarSm + 16}
+                  />
+                  <Text style={styles.fotoAyuda}>
+                    {foto ? 'Tocá para cambiar la foto' : 'Foto del momento (opcional)'}
+                  </Text>
+                </View>
+                <AvisoPermisoFoto
+                  fototeca={fototeca}
+                  motivo="Una foto del momento ayuda a su familia a saber cómo está."
+                  onFoto={setFoto}
+                  compacto
+                />
               </View>
-            </View>
-          )}
-
-          {/* Datos de la mascota */}
-          <View style={styles.card}>
-            <View style={styles.fotoFila}>
-              <FotoEditable
-                foto={foto}
-                nombre={nombre}
-                onPress={handleFoto}
-                cargando={fototeca.eligiendo}
-                size={sizes.avatarLg - 32}
-              />
-              <Text style={styles.fotoAyuda}>
-                {foto ? 'Tocá para cambiar la foto' : 'Sacale o sumá una foto: es lo que más ayuda a que su familia la reconozca'}
-              </Text>
-            </View>
-            <AvisoPermisoFoto
-              fototeca={fototeca}
-              motivo="La foto es lo que más ayuda a que su familia la reconozca."
-              onFoto={setFoto}
-              compacto
-            />
-
-            <Input
-              label="Nombre (si lo sabés)"
-              placeholder="Ej. Firulais"
-              value={nombre}
-              onChangeText={(texto) => {
-                setNombre(texto);
-                if (errores.nombre) setErrores((prev) => ({ ...prev, nombre: undefined }));
-              }}
-              error={errores.nombre}
-              autoCapitalize="words"
-              maxLength={LIMITES.nombreMascota}
-            />
-            <Input
-              label="Raza"
-              placeholder="Ej. Mestizo"
-              value={raza}
-              onChangeText={(texto) => {
-                setRaza(texto);
-                if (errores.raza) setErrores((prev) => ({ ...prev, raza: undefined }));
-              }}
-              error={errores.raza}
-              autoCapitalize="words"
-              maxLength={LIMITES.raza}
-            />
-            <Input
-              label="Descripción / Señas particulares"
-              placeholder="Describí el collar, marcas, tamaño, si está lastimada, etc."
-              value={descripcion}
-              onChangeText={(texto) => {
-                setDescripcion(texto);
-                if (errores.descripcion) setErrores((prev) => ({ ...prev, descripcion: undefined }));
-              }}
-              error={errores.descripcion}
-              multiline
-              maxLength={LIMITES.descripcion}
-            />
-          </View>
-
-          {/* Dónde se la encontró */}
-          <View style={styles.card}>
-            <View style={styles.cardTitulo}>
-              <MaterialIcons name="location-on" size={sizes.iconMd} color={colors.primary} />
-              <Text style={styles.cardTituloTexto}>¿Dónde la encontraste?</Text>
-            </View>
-            <MapaSelector coords={coords} onChange={handleMoverPin} />
-            <View style={styles.direccion}>
-              <Text style={styles.direccionTexto} numberOfLines={2}>
-                {direccion?.texto ?? (gps.cargando ? 'Buscando tu ubicación…' : 'Mové el pin hasta donde la encontraste')}
-              </Text>
-              <Pressable onPress={usarMiUbicacion} hitSlop={spacing.sm} accessibilityRole="button">
-                {({ pressed }) => (
-                  <Text style={[styles.link, pressed && styles.linkPressed]}>Usar mi ubicación</Text>
-                )}
-              </Pressable>
-            </View>
-            {gps.permiso === 'denegado' && (
-              <PermissionNotice
-                icon="location-off"
-                titulo="Sin acceso a tu ubicación"
-                mensaje="Marcá el punto a mano en el mapa, o habilitá la ubicación."
-                puedePreguntar={gps.puedePreguntar}
-                onReintentar={usarMiUbicacion}
-                onAbrirAjustes={gps.abrirAjustes}
+            )
+          ) : (
+            /* Datos de la mascota (sin QR) */
+            <View style={styles.card}>
+              <View style={styles.fotoFila}>
+                <FotoEditable
+                  foto={foto}
+                  nombre={nombre}
+                  onPress={handleFoto}
+                  cargando={fototeca.eligiendo}
+                  size={sizes.avatarLg - 32}
+                />
+                <Text style={styles.fotoAyuda}>
+                  {foto ? 'Tocá para cambiar la foto' : 'Sacale o sumá una foto: es lo que más ayuda a que su familia la reconozca'}
+                </Text>
+              </View>
+              <AvisoPermisoFoto
+                fototeca={fototeca}
+                motivo="La foto es lo que más ayuda a que su familia la reconozca."
+                onFoto={setFoto}
                 compacto
               />
-            )}
-          </View>
 
-          <PrimaryButton
-            title="Publicar como encontrada"
-            icon="volunteer-activism"
-            variant="primary"
-            onPress={handleReportar}
-            loading={enviando}
-            style={styles.boton}
-          />
+              <Input
+                label="Nombre (si lo sabés)"
+                placeholder="Ej. Firulais"
+                value={nombre}
+                onChangeText={(texto) => {
+                  setNombre(texto);
+                  if (errores.nombre) setErrores((prev) => ({ ...prev, nombre: undefined }));
+                }}
+                error={errores.nombre}
+                autoCapitalize="words"
+                maxLength={LIMITES.nombreMascota}
+              />
+              <Input
+                label="Raza"
+                placeholder="Ej. Mestizo"
+                value={raza}
+                onChangeText={(texto) => {
+                  setRaza(texto);
+                  if (errores.raza) setErrores((prev) => ({ ...prev, raza: undefined }));
+                }}
+                error={errores.raza}
+                autoCapitalize="words"
+                maxLength={LIMITES.raza}
+              />
+              <Input
+                label="Descripción / Señas particulares"
+                placeholder="Describí el collar, marcas, tamaño, si está lastimada, etc."
+                value={descripcion}
+                onChangeText={(texto) => {
+                  setDescripcion(texto);
+                  if (errores.descripcion) setErrores((prev) => ({ ...prev, descripcion: undefined }));
+                }}
+                error={errores.descripcion}
+                multiline
+                maxLength={LIMITES.descripcion}
+              />
+            </View>
+          )}
+
+          {!yaAvisaron && (
+            <>
+              {/* Dónde se la encontró */}
+              <View style={styles.card}>
+                <View style={styles.cardTitulo}>
+                  <MaterialIcons name="location-on" size={sizes.iconMd} color={colors.primary} />
+                  <Text style={styles.cardTituloTexto}>¿Dónde la encontraste?</Text>
+                </View>
+                <MapaSelector coords={coords} onChange={handleMoverPin} />
+                <View style={styles.direccion}>
+                  <Text style={styles.direccionTexto} numberOfLines={2}>
+                    {direccion?.texto ?? (gps.cargando ? 'Buscando tu ubicación…' : 'Mové el pin hasta donde la encontraste')}
+                  </Text>
+                  <Pressable onPress={usarMiUbicacion} hitSlop={spacing.sm} accessibilityRole="button">
+                    {({ pressed }) => (
+                      <Text style={[styles.link, pressed && styles.linkPressed]}>Usar mi ubicación</Text>
+                    )}
+                  </Pressable>
+                </View>
+                {gps.permiso === 'denegado' && (
+                  <PermissionNotice
+                    icon="location-off"
+                    titulo="Sin acceso a tu ubicación"
+                    mensaje="Marcá el punto a mano en el mapa, o habilitá la ubicación."
+                    puedePreguntar={gps.puedePreguntar}
+                    onReintentar={usarMiUbicacion}
+                    onAbrirAjustes={gps.abrirAjustes}
+                    compacto
+                  />
+                )}
+              </View>
+
+              {identificada ? (
+                <View style={styles.publicar}>
+                  <PrimaryButton
+                    title="Avisarle a su familia que la encontré"
+                    icon="volunteer-activism"
+                    variant="primary"
+                    onPress={handleReportar}
+                    loading={enviando}
+                    style={styles.boton}
+                  />
+                  <Text style={styles.publicarAyuda}>
+                    Le vamos a mostrar tu nombre y teléfono para que te contacte
+                  </Text>
+                </View>
+              ) : (
+                <PrimaryButton
+                  title="Publicar como encontrada"
+                  icon="volunteer-activism"
+                  variant="primary"
+                  onPress={handleReportar}
+                  loading={enviando}
+                  style={styles.boton}
+                />
+              )}
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -417,6 +521,17 @@ const styles = StyleSheet.create({
     ...typography.bodySm,
     color: colors.onSurface,
     flex: 1,
+  },
+  escanearOtra: {
+    alignSelf: 'flex-start',
+  },
+  publicar: {
+    gap: spacing.sm,
+  },
+  publicarAyuda: {
+    ...typography.bodySm,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
   },
   identificada: {
     flexDirection: 'row',
