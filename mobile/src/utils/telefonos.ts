@@ -42,3 +42,39 @@ export function formatearTelefono(telefono: string): string {
 export function enlaceTelefono(telefono: string): string {
   return `tel:${aE164(telefono) ?? telefono.replace(/[^\d+]/g, '')}`;
 }
+
+/**
+ * Indica si un teléfono es un celular (para ofrecer WhatsApp). Usa el tipo
+ * de número de libphonenumber-js con la misma metadata: MOBILE, o
+ * FIXED_LINE_OR_MOBILE cuando el plan del país no permite distinguirlos.
+ * En la Argentina, un celular lleva el 9 (internacional) o el 15 (local).
+ * @param telefono teléfono guardado (en E.164) o escrito por el usuario
+ * @returns true si se le puede escribir por WhatsApp
+ */
+export function esCelular(telefono: string): boolean {
+  const numero = parsePhoneNumberFromString(telefono.trim(), REGION_TELEFONO);
+  if (!numero?.isValid()) return false;
+  const tipo = numero.getType();
+  return tipo === 'MOBILE' || tipo === 'FIXED_LINE_OR_MOBILE';
+}
+
+/**
+ * Link de WhatsApp con un mensaje ya escrito: https://wa.me/<número sin +>?text=<texto>.
+ * Es la única función que lo arma.
+ * @param telefono teléfono en E.164 ("+5491145892310")
+ * @param texto mensaje a precargar
+ * @returns la URL de wa.me
+ */
+export function enlaceWhatsApp(telefono: string, texto: string): string {
+  const numero = (aE164(telefono) ?? telefono).replace(/\D/g, '');
+  return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+}
+
+/**
+ * Link de Google Maps a un punto, para mandarlo en un mensaje.
+ * @param punto latitud y longitud
+ * @returns la URL de Google Maps
+ */
+export function enlaceMapa(punto: { lat: number; lng: number }): string {
+  return `https://maps.google.com/?q=${punto.lat},${punto.lng}`;
+}

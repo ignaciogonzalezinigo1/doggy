@@ -3,17 +3,22 @@
  * alguien reportó como encontrada (por ejemplo, escaneando su chapita).
  *
  * Muestra dónde y cuándo la encontraron, la descripción que dejó quien la
- * encontró y, si viene, su contacto con un link para llamarlo. "Ya la
- * recuperé" pide confirmación y cierra el reporte (y el de perdida, si había).
+ * encontró y, si viene, su contacto con un link para llamarlo y, si es un
+ * celular, "Escribirle por WhatsApp" con un mensaje ya escrito (con el punto
+ * del reporte en Google Maps). "Ya la recuperé" pide confirmación y cierra el
+ * reporte (y el de perdida, si había).
  * Se muestra en Mis Mascotas y en el perfil de la mascota.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useApp } from '@/context/AppContext';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
+import { enlaceMapa, esCelular } from '@/utils/telefonos';
+import { BotonWhatsApp } from '../BotonWhatsApp';
 import { LinkTelefono } from '../LinkTelefono';
 import { PrimaryButton } from '../PrimaryButton';
 
@@ -34,6 +39,7 @@ type Props = {
  * @returns la card con los datos del reporte y "Ya la recuperé"
  */
 export function AvisoEncontrada({ reporte, onRecuperada, recuperando = false }: Props) {
+  const { usuario } = useApp();
   const cuando = `${tiempoTranscurrido(reporte.fecha)} · ${formatearFecha(reporte.fecha)} ${formatearHora(reporte.fecha)}`;
 
   return (
@@ -53,6 +59,16 @@ export function AvisoEncontrada({ reporte, onRecuperada, recuperando = false }: 
         <View style={styles.contacto}>
           <Text style={styles.contactoTexto}>La encontró {reporte.contacto.nombre}. Llamá para coordinar la vuelta:</Text>
           <LinkTelefono telefono={reporte.contacto.telefono} nombre={reporte.contacto.nombre} />
+          {esCelular(reporte.contacto.telefono) && (
+            <BotonWhatsApp
+              titulo="Escribirle por WhatsApp"
+              telefono={reporte.contacto.telefono}
+              armarMensaje={() =>
+                `¡Hola ${reporte.contacto?.nombre}! Soy ${usuario?.nombre ?? 'de su familia'}, de la familia de ${reporte.nombre}. ` +
+                `Vi tu aviso en Doggy, ¡muchas gracias! ¿Cómo coordinamos para buscarla?\n${enlaceMapa(reporte)}`
+              }
+            />
+          )}
         </View>
       )}
 

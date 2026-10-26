@@ -41,6 +41,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { BotonWhatsApp } from '@/components/BotonWhatsApp';
 import { AvisoPermisoFoto } from '@/components/AvisoPermisoFoto';
 import { FotoEditable } from '@/components/FotoEditable';
 import { Input } from '@/components/Input';
@@ -60,6 +61,7 @@ import { CODIGO_MASCOTA_REGEX } from '@/utils/codigos';
 import { textoEdad } from '@/utils/etiquetas';
 import { CENTRO_CABA } from '@/utils/mapa';
 import { reporteActivo } from '@/utils/selectores';
+import { enlaceMapa, esCelular } from '@/utils/telefonos';
 import {
   LIMITES,
   limpiarTexto,
@@ -127,6 +129,19 @@ export default function ReportarScreen() {
     setFoto(null);
     setErrores({});
   }, []);
+
+  /**
+   * Mensaje de WhatsApp para la familia de una mascota perdida. La ubicación
+   * es el punto del mapa si ya hay uno real (lo marcó o llegó el GPS); si no,
+   * se pide la actual en el momento. Sin ubicación, va sin esa línea.
+   * @param mascota mascota identificada
+   * @returns el texto del mensaje
+   */
+  const mensajeHallazgo = async (mascota: MascotaPublica): Promise<string> => {
+    const saludo = `¡Hola! Encontré a ${mascota.nombre} gracias a su chapita de Doggy.`;
+    const punto = pinAjustado.current || gps.ubicacion ? coords : await gps.obtenerUbicacion();
+    return punto ? `${saludo} Estoy acá: ${enlaceMapa(punto)}` : saludo;
+  };
 
   /** Descarta la mascota identificada y vuelve a la cámara. */
   const escanearOtra = () => {
@@ -299,6 +314,13 @@ export default function ReportarScreen() {
                   )}
                   {identificada.dueno.telefono && (
                     <LinkTelefono telefono={identificada.dueno.telefono} nombre={identificada.dueno.nombre} />
+                  )}
+                  {perdida && identificada.dueno.telefono && esCelular(identificada.dueno.telefono) && (
+                    <BotonWhatsApp
+                      titulo="Avisar por WhatsApp"
+                      telefono={identificada.dueno.telefono}
+                      armarMensaje={() => mensajeHallazgo(identificada)}
+                    />
                   )}
                 </View>
               </View>

@@ -33,6 +33,8 @@ type Props = Omit<TextInputProps, 'secureTextEntry' | 'style'> & {
   icon?: IconName;
   /** Mensaje de error; si viene, el borde se pinta de rojo. */
   error?: string;
+  /** Texto chico de ayuda debajo del campo; si hay error, se muestra el error en su lugar. */
+  ayuda?: string;
   /** Modo contraseña con botón para mostrar u ocultar. */
   password?: boolean;
 };
@@ -42,7 +44,7 @@ type Props = Omit<TextInputProps, 'secureTextEntry' | 'style'> & {
  * Se expone la ref del TextInput para poder pasar el foco al siguiente campo.
  */
 export const Input = forwardRef<TextInputInstance, Props>(function Input(
-  { label, icon, error, password = false, onFocus, onBlur, ...inputProps },
+  { label, icon, error, ayuda, password = false, onFocus, onBlur, ...inputProps },
   ref,
 ) {
   // --- Estado ---
@@ -116,9 +118,13 @@ export const Input = forwardRef<TextInputInstance, Props>(function Input(
           </Pressable>
         )}
       </View>
-      {(!!error || contador) && (
+      {(!!error || !!ayuda || contador) && (
         <View style={styles.pie}>
-          {!!error && <Text style={styles.error}>{error}</Text>}
+          {error ? (
+            <Text style={styles.error}>{error}</Text>
+          ) : (
+            !!ayuda && <Text style={styles.ayuda}>{ayuda}</Text>
+          )}
           {contador && (
             <Text style={styles.contador} accessibilityLabel={`${largo} de ${inputProps.maxLength} caracteres`}>
               {largo}/{inputProps.maxLength}
@@ -189,6 +195,11 @@ const styles = StyleSheet.create({
   error: {
     ...typography.bodySm,
     color: colors.error,
+    flex: 1,
+  },
+  ayuda: {
+    ...typography.bodySm,
+    color: colors.onSurfaceVariant,
     flex: 1,
   },
   contador: {

@@ -105,6 +105,10 @@ Solo se escribe sobre mascotas a las que el usuario está asignado, como dueño 
 **¿Cómo identifica el escáner a un perro ajeno si solo ves tus mascotas?**
 Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. Devuelve solo los datos públicos (nombre, edad en meses, raza, señas, foto, código) y el nombre del tutor, sin carnet ni otros datos del dueño.
 
+**¿Cuándo aparece WhatsApp y por qué?**
+Solo para celulares (`esCelular`, con el tipo de número de libphonenumber-js) y solo cuando la app ya puede ver el teléfono: quien escanea el QR lo ve si la mascota está perdida (el servidor no lo manda en otro caso), y el tutor ve el de quien la encontró en "¡Encontraron a …!" (el servidor solo se lo manda a los asignados). WhatsApp no abre ninguna puerta nueva: usa el mismo teléfono que ya era visible. El link se arma con una sola función, `enlaceWhatsApp` (`wa.me`), con el mensaje y la ubicación en Google Maps.
+→ `doggy/mobile/src/utils/telefonos.ts`, `doggy/mobile/src/components/BotonWhatsApp.tsx`
+
 **¿Por qué los teléfonos se guardan en E.164?**
 Para que cada número tenga una sola forma (`+5491145892310`) aunque se tipee como "11 15 4589-2310" o "+54 9 11 4589-2310", para que el link `tel:` ande desde cualquier país y para validar que sea un número real. Lo hace libphonenumber-js (región AR) en el servidor y en la app; en pantalla se muestra legible: "+54 9 11 4589-2310".
 → `doggy-backend/src/lib/telefonos.ts`, `doggy/mobile/src/utils/telefonos.ts`
