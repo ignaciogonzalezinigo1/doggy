@@ -378,7 +378,7 @@ export function validarHora(texto: string): string | undefined {
 
 /**
  * Valida un teléfono con libphonenumber-js (región AR), igual que el servidor:
- * se puede escribir como "11 15 4589-2310", "011 15 4589-2310" o
+ * se puede escribir como "11 4589-2310", "0299 15 455-4060" o
  * "+54 9 11 4589-2310", pero tiene que ser un número real.
  * @param telefono texto ingresado
  * @returns mensaje de error o undefined
@@ -388,7 +388,7 @@ export function validarTelefono(telefono: string): string | undefined {
   if (!valor) return 'Ingresá un teléfono de contacto.';
   if (!/^\+?[\d\s\-().]+$/.test(valor)) return 'Usá solo números, espacios, guiones, paréntesis y "+".';
   if (!aE164(valor)) {
-    return 'No es un número válido. Escribilo con la característica, por ejemplo 11 15 4589-2310 o +54 9 11 4589-2310.';
+    return 'No es un número válido. Escribilo con la característica, por ejemplo 11 4589-2310 o 299 455-4060.';
   }
   return undefined;
 }

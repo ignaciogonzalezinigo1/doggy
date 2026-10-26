@@ -1,7 +1,7 @@
 /**
  * Service del usuario logueado (perfil y contacto de emergencia).
  */
-import type { DatosUsuario, Usuario } from '@/types/models';
+import type { CambiosUsuario, Usuario } from '@/types/models';
 import { conCuerpo, pedirJson } from './http';
 
 /**
@@ -16,10 +16,11 @@ export async function obtenerUsuario(): Promise<Usuario> {
 /**
  * Actualiza datos del perfil. `foto: null` borra la foto.
  * Endpoint: PATCH /api/usuarios/me
- *   { nombre?, apellido?, email?, ubicacion?, telefonoEmergencia?, foto? } -> 200 Usuario
+ *   { nombre?, apellido?, email?, ubicacion?, telefonoEmergencia?, telefonoFijo?, foto? } -> 200 Usuario
+ *   (el teléfono se guarda como celular salvo `telefonoFijo: true`)
  * @param datos campos a modificar
  * @returns el usuario actualizado
  */
-export async function actualizarUsuario(datos: DatosUsuario): Promise<Usuario> {
+export async function actualizarUsuario(datos: CambiosUsuario): Promise<Usuario> {
   return pedirJson<Usuario>('/api/usuarios/me', conCuerpo('PATCH', datos));
 }

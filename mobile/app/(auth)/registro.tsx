@@ -4,8 +4,8 @@
  * Mismo estilo que el Login: fondo teal y el formulario en una card clara.
  * Pide nombre, apellido, email, teléfono y contraseña con confirmación, y
  * valida todo localmente: nombre y apellido solo con letras, email con
- * formato válido, teléfono real (libphonenumber-js, el mismo `InputTelefono`
- * y el mismo aviso de fijo que el perfil) y contraseña de 8 a 64 caracteres,
+ * formato válido, teléfono real (libphonenumber-js, con el mismo
+ * `InputTelefono` y la misma casilla "Es un teléfono fijo" que el perfil) y contraseña de 8 a 64 caracteres,
  * sin espacios, con al menos una letra y un número. Cada campo tiene su largo máximo. Con todo válido crea la cuenta
  * contra la API, deja la sesión abierta y entra a la tab Mascotas con un
  * saludo que invita a completar el perfil. Si el servidor la rechaza (por
@@ -24,7 +24,6 @@ import { ScreenContainer } from '@/components/ScreenContainer';
 import { useApp } from '@/context/AppContext';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { volver } from '@/utils/navegacion';
-import { confirmarSiEsFijo } from '@/utils/telefonos';
 import {
   LIMITES,
   limpiarTexto,
@@ -83,6 +82,8 @@ export default function RegistroScreen() {
 
   // --- Estado ---
   const [form, setForm] = useState<Formulario>(FORM_INICIAL);
+  /** "Es un teléfono fijo": desmarcada, el teléfono se guarda como celular. */
+  const [telefonoFijo, setTelefonoFijo] = useState(false);
   const [errores, setErrores] = useState<Errores>({});
   const [enviando, setEnviando] = useState(false);
   const apellidoRef = useRef<TextInputInstance>(null);
@@ -102,21 +103,15 @@ export default function RegistroScreen() {
   };
 
   /**
-   * Valida y, si el teléfono es fijo, avisa antes de seguir (sin bloquear).
+   * Valida y, si todo está bien, crea la cuenta (queda la sesión abierta),
+   * entra a la tab Mascotas sin dejar el registro en el historial y saluda.
    */
-  const handleCrearCuenta = () => {
+  const handleCrearCuenta = async () => {
     if (enviando) return;
     const nuevos = validarFormulario(form);
     setErrores(nuevos);
     if (Object.values(nuevos).some(Boolean)) return;
-    confirmarSiEsFijo(form.telefonoEmergencia, crearCuenta);
-  };
 
-  /**
-   * Crea la cuenta (queda la sesión abierta), entra a la tab Mascotas sin
-   * dejar el registro en el historial y saluda.
-   */
-  const crearCuenta = async () => {
     const nombre = limpiarTexto(form.nombre);
     setEnviando(true);
     try {
@@ -125,6 +120,7 @@ export default function RegistroScreen() {
         apellido: limpiarTexto(form.apellido),
         email: normalizarEmail(form.email),
         telefonoEmergencia: limpiarTexto(form.telefonoEmergencia),
+        telefonoFijo,
         password: form.password,
       });
       router.replace('/mascotas');
@@ -221,6 +217,8 @@ export default function RegistroScreen() {
           value={form.telefonoEmergencia}
           onChangeText={handleChange('telefonoEmergencia')}
           error={errores.telefonoEmergencia}
+          fijo={telefonoFijo}
+          onCambiarFijo={setTelefonoFijo}
           returnKeyType="next"
           onSubmitEditing={() => passwordRef.current?.focus()}
         />

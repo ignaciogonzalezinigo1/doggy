@@ -9,7 +9,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import { spacing } from '@/theme';
-import { aE164, confirmarSiEsFijo, formatearTelefono } from '@/utils/telefonos';
+import { esCelular, formatearTelefono } from '@/utils/telefonos';
 import type { Usuario } from '@/types/models';
 import {
   LIMITES,
@@ -65,6 +65,10 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
     // Se edita legible ("+54 9 11 4589-2310"); el servidor lo vuelve a guardar en E.164.
     telefonoEmergencia: usuario.telefonoEmergencia ? formatearTelefono(usuario.telefonoEmergencia) : '',
   });
+  // Un teléfono guardado como fijo arranca con la casilla marcada.
+  const [telefonoFijo, setTelefonoFijo] = useState(
+    () => !!usuario.telefonoEmergencia && !esCelular(usuario.telefonoEmergencia),
+  );
   const [errores, setErrores] = useState<Errores>({});
   const [guardando, setGuardando] = useState(false);
 
@@ -78,24 +82,12 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
     if (errores[campo]) setErrores((prev) => ({ ...prev, [campo]: undefined }));
   };
 
-  /**
-   * Valida y guarda. Si el teléfono cambió y es válido pero fijo, avisa antes
-   * (sin bloquear) que no se va a poder usar WhatsApp: "Guardar igual" sigue y
-   * "Corregir" vuelve al formulario.
-   */
-  const handleGuardar = () => {
+  /** Valida y guarda los cambios (PATCH /api/usuarios/me); el servidor guarda el teléfono en E.164. */
+  const handleGuardar = async () => {
     const nuevos = validar(form);
     setErrores(nuevos);
     if (Object.values(nuevos).some(Boolean)) return;
 
-    // Solo se avisa si cambió: si no, una cuenta con fijo vería el aviso cada vez que guarda.
-    const cambioTelefono = aE164(form.telefonoEmergencia) !== usuario.telefonoEmergencia;
-    if (cambioTelefono) confirmarSiEsFijo(form.telefonoEmergencia, guardar);
-    else guardar();
-  };
-
-  /** Guarda los cambios (PATCH /api/usuarios/me); el servidor guarda el teléfono en E.164. */
-  const guardar = async () => {
     setGuardando(true);
     try {
       await actualizarUsuario({
@@ -104,6 +96,7 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
         ubicacion: limpiarTexto(form.ubicacion),
         email: normalizarEmail(form.email),
         telefonoEmergencia: limpiarTexto(form.telefonoEmergencia),
+        telefonoFijo,
       });
       onGuardado();
     } catch (e) {
@@ -165,6 +158,8 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
         value={form.telefonoEmergencia}
         onChangeText={handleChange('telefonoEmergencia')}
         error={errores.telefonoEmergencia}
+        fijo={telefonoFijo}
+        onCambiarFijo={setTelefonoFijo}
       />
 
       <PrimaryButton

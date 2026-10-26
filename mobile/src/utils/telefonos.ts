@@ -1,26 +1,55 @@
 /**
- * Teléfonos con libphonenumber-js, igual que en doggy-backend.
+ * Teléfonos con libphonenumber-js, con la misma regla que doggy-backend.
  *
- * El servidor guarda los teléfonos en E.164 (+5491145892310). Para mostrarlos
- * se usa el formato internacional legible (+54 9 11 4589-2310) y los links
- * `tel:` usan E.164. Sin código de país se toma la Argentina. Se usa la
- * metadata completa (`/max`), la misma que el servidor, así la app y la API
- * aceptan exactamente los mismos números.
+ * El servidor guarda los teléfonos en E.164 (+5492994554060). Para mostrarlos
+ * se usa el formato internacional legible (+54 9 299 455-4060) y los links
+ * `tel:` y de WhatsApp usan E.164. Sin código de país se toma la Argentina. Se
+ * usa la metadata completa (`/max`), la misma que el servidor, así la app y
+ * la API aceptan exactamente los mismos números.
+ *
+ * Regla argentina: por defecto todo número es CELULAR ("2994554060",
+ * "299 455-4060" y "0299 15 455-4060" dan +5492994554060). Para un fijo, el
+ * usuario marca "Es un teléfono fijo" y se guarda sin el 9.
  */
-import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
-import { Alert } from 'react-native';
+import { parsePhoneNumberFromString, type PhoneNumber } from 'libphonenumber-js/max';
 
 /** País que se asume cuando el número no trae código de país. */
 const REGION_TELEFONO = 'AR';
+/** Código de país de la Argentina. */
+const CODIGO_ARGENTINA = '54';
 
 /**
- * Convierte un teléfono escrito en cualquier formato habitual a E.164.
+ * Interpreta un número E.164 y lo devuelve solo si es válido.
+ * @param e164 número con +
+ * @returns el número, o null si no es válido
+ */
+function siEsValido(e164: string): PhoneNumber | null {
+  const numero = parsePhoneNumberFromString(e164);
+  return numero?.isValid() ? numero : null;
+}
+
+/**
+ * Convierte un teléfono escrito en cualquier formato habitual a E.164, con la
+ * regla argentina: celular por defecto, fijo solo si se marcó.
  * @param texto teléfono como lo escribió el usuario
+ * @param fijo true si el usuario marcó "Es un teléfono fijo"
  * @returns el número en E.164, o null si no es un número válido
  */
-export function aE164(texto: string): string | null {
+export function aE164(texto: string, fijo = false): string | null {
   const numero = parsePhoneNumberFromString(texto.trim(), REGION_TELEFONO);
-  return numero?.isValid() ? numero.number : null;
+  if (!numero?.isValid()) return null;
+  if (numero.countryCallingCode !== CODIGO_ARGENTINA) return numero.number;
+
+  const nacional = numero.nationalNumber;
+  const esMovil = numero.getType() === 'MOBILE';
+  if (fijo && esMovil) {
+    // El celular argentino es el fijo con un 9 adelante: se le saca.
+    return siEsValido(`+${CODIGO_ARGENTINA}${nacional.replace(/^9/, '')}`)?.number ?? numero.number;
+  }
+  if (!fijo && !esMovil) {
+    return siEsValido(`+${CODIGO_ARGENTINA}9${nacional}`)?.number ?? numero.number;
+  }
+  return numero.number;
 }
 
 /**
@@ -78,27 +107,4 @@ export function enlaceWhatsApp(telefono: string, texto: string): string {
  */
 export function enlaceMapa(punto: { lat: number; lng: number }): string {
   return `https://maps.google.com/?q=${punto.lat},${punto.lng}`;
-}
-
-/**
- * Aviso no bloqueante al guardar un teléfono: si es válido pero fijo, avisa
- * que no va a servir para WhatsApp y deja elegir. "Guardar igual" sigue con
- * `continuar`; "Corregir" vuelve al formulario. Si es celular, sigue directo.
- * Lo usan el registro y el perfil.
- * @param telefono teléfono ya validado con `validarTelefono`
- * @param continuar lo que guarda
- */
-export function confirmarSiEsFijo(telefono: string, continuar: () => void): void {
-  if (esCelular(telefono)) {
-    continuar();
-    return;
-  }
-  Alert.alert(
-    'Teléfono fijo',
-    'Lo guardamos como teléfono fijo: no se va a poder usar WhatsApp. Si es un celular, agregá el 15.',
-    [
-      { text: 'Corregir', style: 'cancel' },
-      { text: 'Guardar igual', onPress: continuar },
-    ],
-  );
 }

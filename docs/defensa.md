@@ -117,7 +117,11 @@ Solo para celulares (`esCelular`, con el tipo de número de libphonenumber-js) y
 → `doggy/mobile/src/utils/telefonos.ts`, `doggy/mobile/src/components/BotonWhatsApp.tsx`
 
 **¿Por qué los teléfonos se guardan en E.164?**
-Para que cada número tenga una sola forma (`+5491145892310`) aunque se tipee como "11 15 4589-2310" o "+54 9 11 4589-2310", para que el link `tel:` ande desde cualquier país y para validar que sea un número real. Lo hace libphonenumber-js (región AR) en el servidor y en la app; en pantalla se muestra legible: "+54 9 11 4589-2310".
+Para que cada número tenga una sola forma (`+5492994554060`) aunque se tipee como "2994554060", "0299 15 455-4060" o "+54 9 299 455-4060", para que los links `tel:` y de WhatsApp anden desde cualquier país y para validar que sea un número real. Lo hace libphonenumber-js (región AR) en el servidor y en la app; en pantalla se muestra legible: "+54 9 299 455-4060".
+
+**¿Por qué todo número argentino se guarda como celular?**
+Porque libphonenumber, si no se escribe el 9 o el 15, toma el número como fijo, y casi todos cargan su celular así ("2994554060"): quedaba como fijo y sin WhatsApp. Ahora es celular por defecto y, para un fijo, se marca "Es un teléfono fijo" (el servidor lo recibe como `telefonoFijo` y guarda el número sin el 9). No hace falta otra columna: el E.164 ya dice si es fijo o celular.
+→ `doggy-backend/src/lib/telefonos.ts` (`aE164`), `doggy/mobile/src/components/InputTelefono.tsx`
 → `doggy-backend/src/lib/telefonos.ts`, `doggy/mobile/src/utils/telefonos.ts`
 
 **¿Por qué fecha de nacimiento y no edad?**

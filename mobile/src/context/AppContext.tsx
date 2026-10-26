@@ -51,7 +51,7 @@ import * as usuarioService from '@/services/usuario';
 import type {
   CambiosReporte,
   Cuidador,
-  DatosUsuario,
+  CambiosUsuario,
   Invitacion,
   Mascota,
   MascotaPublica,
@@ -107,7 +107,7 @@ type AppContextValue = {
   agregarTurno: (datos: NuevoTurno) => Promise<Turno>;
   editarTurno: (id: number, datos: NuevoTurno) => Promise<Turno>;
   borrarTurno: (id: number) => Promise<void>;
-  actualizarUsuario: (datos: DatosUsuario) => Promise<Usuario>;
+  actualizarUsuario: (datos: CambiosUsuario) => Promise<Usuario>;
   // --- Asignación de mascotas ---
   generarInvitacion: (mascota: Mascota, rol: RolMascota) => Promise<Invitacion>;
   verInvitacion: (token: string) => Promise<Invitacion>;
@@ -391,7 +391,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /** Actualiza los datos personales del usuario. */
-  const actualizarUsuario = useCallback(async (datos: DatosUsuario) => {
+  const actualizarUsuario = useCallback(async (datos: CambiosUsuario) => {
     const actualizado = await usuarioService.actualizarUsuario(await conFotoSubida(datos, 'foto'));
     setUsuario(actualizado);
     return actualizado;
