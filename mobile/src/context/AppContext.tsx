@@ -23,6 +23,17 @@
  * registro) pasan antes los datos por `conFotoSubida`, que sube la foto si es
  * un archivo local del celular y manda la ruta del servidor. Si la subida
  * falla, la acción lanza el error y no se guarda nada.
+ *
+ * Refrescar (pull-to-refresh): `refrescar` vuelve a pedir todo con los mismos
+ * services que la carga inicial (`pedirTodo`). A diferencia de `recargar`, no
+ * pone `cargando` (las pantallas siguen mostrando los datos) y, si falla,
+ * avisa con un Alert y deja los datos que había.
+ *
+ * Rendimiento: hay dos contextos. `useApp()` da todo (datos y acciones) y
+ * re-renderiza cuando cambia cualquier dato. `useAcciones()` da solo las
+ * acciones, cuyo valor no cambia nunca (son todas `useCallback` estables):
+ * las cards de las listas lo usan para borrar sin re-renderizarse cada vez
+ * que cambia otro dato.
  */
 import {
   createContext,
@@ -73,7 +84,8 @@ import type {
  */
 export type EstadoSesion = 'restaurando' | 'abierta' | 'cerrada';
 
-type AppContextValue = {
+/** Datos del estado global (cambian). */
+type AppDatos = {
   // --- Sesión ---
   sesion: EstadoSesion;
   // --- Datos ---
@@ -85,10 +97,17 @@ type AppContextValue = {
   cuidadores: Cuidador[];
   /** true mientras se cargan los datos de la sesión. */
   cargando: boolean;
+  /** true mientras se refresca con pull-to-refresh (los datos siguen a la vista). */
+  refrescando: boolean;
   /** Mensaje de error de la última carga, si falló. */
   error: string | null;
-  // --- Acciones ---
+};
+
+/** Acciones del estado global (no cambian: son funciones estables). */
+type AppAcciones = {
   recargar: () => Promise<void>;
+  /** Vuelve a pedir todo sin ocultar los datos; si falla, avisa y deja los que había. */
+  refrescar: () => Promise<void>;
   iniciarSesion: (email: string, password: string) => Promise<void>;
   /** Crea la cuenta y deja la sesión abierta con ella. */
   registrarse: (datos: DatosRegistro) => Promise<void>;
@@ -116,7 +135,10 @@ type AppContextValue = {
   desasignarme: (mascotaId: number) => Promise<void>;
 };
 
+type AppContextValue = AppDatos & AppAcciones;
+
 const AppContext = createContext<AppContextValue | null>(null);
+const AccionesContext = createContext<AppAcciones | null>(null);
 
 /**
  * Extrae un mensaje legible de un error desconocido.
@@ -180,6 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [reportes, setReportes] = useState<ReportePerdida[]>([]);
   const [cuidadores, setCuidadores] = useState<Cuidador[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [refrescando, setRefrescando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /**
    * Número de la sesión actual: aumenta cada vez que se vacía el estado
@@ -213,6 +236,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setReportes([]);
     setCuidadores([]);
     setCargando(false);
+    setRefrescando(false);
     setError(null);
   }, []);
 
@@ -230,6 +254,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (sigueVigente()) setError(mensajeDeError(e));
     } finally {
       if (sigueVigente()) setCargando(false);
+    }
+  }, [aplicarDatos]);
+
+  /**
+   * Pull-to-refresh: vuelve a pedir todo (por si otro usuario cambió algo)
+   * sin mostrar el estado de carga. Si falla, avisa y conserva los datos.
+   */
+  const refrescar = useCallback(async () => {
+    const sesionDeLaCarga = sesionActual.current;
+    const sigueVigente = () => sesionDeLaCarga === sesionActual.current;
+    setRefrescando(true);
+    try {
+      const datos = await pedirTodo();
+      if (!sigueVigente()) return;
+      aplicarDatos(datos);
+      setError(null);
+    } catch (e) {
+      if (sigueVigente()) {
+        Alert.alert('No pudimos actualizar', `${mensajeDeError(e)} Te seguimos mostrando lo último que cargaste.`);
+      }
+    } finally {
+      if (sigueVigente()) setRefrescando(false);
     }
   }, [aplicarDatos]);
 
@@ -449,19 +495,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTurnos((prev) => prev.filter((t) => t.mascotaId !== mascotaId));
   }, []);
 
-  // useMemo evita re-renderizar a todos los consumidores si no cambió nada.
-  const value = useMemo<AppContextValue>(
+  // Las acciones no cambian nunca (todas son useCallback estables): su contexto
+  // no re-renderiza a nadie. El de todo (datos y acciones) cambia con los datos.
+  const acciones = useMemo<AppAcciones>(
     () => ({
-      sesion,
-      usuario,
-      mascotas,
-      registros,
-      turnos,
-      reportes,
-      cuidadores,
-      cargando,
-      error,
       recargar,
+      refrescar,
       iniciarSesion,
       registrarse,
       cerrarSesion,
@@ -484,16 +523,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       desasignarme,
     }),
     [
-      sesion,
-      usuario,
-      mascotas,
-      registros,
-      turnos,
-      reportes,
-      cuidadores,
-      cargando,
-      error,
       recargar,
+      refrescar,
       iniciarSesion,
       registrarse,
       cerrarSesion,
@@ -517,7 +548,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  // useMemo evita re-renderizar a todos los consumidores si no cambió nada.
+  const value = useMemo<AppContextValue>(
+    () => ({
+      sesion,
+      usuario,
+      mascotas,
+      registros,
+      turnos,
+      reportes,
+      cuidadores,
+      cargando,
+      refrescando,
+      error,
+      ...acciones,
+    }),
+    [sesion, usuario, mascotas, registros, turnos, reportes, cuidadores, cargando, refrescando, error, acciones],
+  );
+
+  return (
+    <AccionesContext.Provider value={acciones}>
+      <AppContext.Provider value={value}>{children}</AppContext.Provider>
+    </AccionesContext.Provider>
+  );
 }
 
 /**
@@ -528,5 +581,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 export function useApp(): AppContextValue {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp tiene que usarse dentro de AppProvider.');
+  return ctx;
+}
+
+/**
+ * Hook para usar solo las acciones (borrar, guardar, refrescar...). Su valor no
+ * cambia nunca, así el componente no se re-renderiza cuando cambian los datos.
+ * @returns las acciones del contexto
+ * @throws si se usa fuera de AppProvider
+ */
+export function useAcciones(): AppAcciones {
+  const ctx = useContext(AccionesContext);
+  if (!ctx) throw new Error('useAcciones tiene que usarse dentro de AppProvider.');
   return ctx;
 }

@@ -38,6 +38,7 @@ import { SectionTitle } from '@/components/SectionTitle';
 import { GUIA_PASEO_URL } from '@/config';
 import { useApp } from '@/context/AppContext';
 import { useFototeca } from '@/hooks/useFototeca';
+import { useRefresco } from '@/hooks/useRefresco';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { Mascota } from '@/types/models';
 import { codigoDeTexto } from '@/utils/invitaciones';
@@ -70,6 +71,7 @@ export default function PerfilScreen() {
     desasignarme,
     cerrarSesion,
   } = useApp();
+  const refresco = useRefresco();
   const fototeca = useFototeca();
 
   // --- Estado ---
@@ -219,7 +221,11 @@ export default function PerfilScreen() {
   return (
     <View style={styles.screen}>
       <AppHeader />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refresco}
+      >
         {/* 1. Datos del usuario */}
         <View style={styles.perfilCard}>
           <View style={styles.degrade} pointerEvents="none" />

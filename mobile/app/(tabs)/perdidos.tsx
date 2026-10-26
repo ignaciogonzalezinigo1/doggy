@@ -42,6 +42,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { useApp } from '@/context/AppContext';
 import { useCerrarReporte } from '@/hooks/useCerrarReporte';
+import { useRefresco } from '@/hooks/useRefresco';
 import { Coordenadas, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
@@ -73,7 +74,8 @@ const ESPERA_CIERRE_HOJA_MS = 300;
  * @returns el mapa o la lista de reportes
  */
 export default function PerdidosScreen() {
-  const { reportes, usuario, mascotas, error, recargar } = useApp();
+  const { reportes, usuario, mascotas, error, recargar, refrescando, refrescar } = useApp();
+  const refresco = useRefresco();
   const { reporteId } = useLocalSearchParams<{ reporteId?: string }>();
   const gps = useUbicacion({ automatico: true });
   const { width } = useWindowDimensions();
@@ -103,6 +105,8 @@ export default function PerdidosScreen() {
     [reportes, busqueda, filtro],
   );
   const anchoCard = width - spacing.containerMargin * 2 - ASOMA;
+  /** Mismo objeto mientras no cambie el ancho, así `ReporteCard` (memoizada) no se redibuja. */
+  const estiloCard = useMemo(() => ({ width: anchoCard }), [anchoCard]);
 
   // Recién llegado de reportar: se muestra el nuevo marker seleccionado y centrado.
   // El estado se ajusta durante el render (patrón de React para "cambió un
@@ -244,6 +248,17 @@ export default function PerdidosScreen() {
         <View style={styles.tituloFila}>
           <Text style={styles.titulo}>Mascotas Perdidas</Text>
           <View style={styles.acciones}>
+            {/* El mapa no tiene scroll: para refrescar ahí hay un botón (en la lista, pull-to-refresh). */}
+            {modo === 'mapa' &&
+              (refrescando ? (
+                <ActivityIndicator
+                  color={colors.primary}
+                  style={styles.refrescando}
+                  accessibilityLabel="Actualizando"
+                />
+              ) : (
+                <IconButton icon="refresh" label="Actualizar" onPress={refrescar} />
+              ))}
             <IconButton icon="search" label="Buscar" onPress={toggleBuscador} activo={buscando} />
             <IconButton
               icon="filter-list"
@@ -328,7 +343,7 @@ export default function PerdidosScreen() {
                     reporte={item}
                     onPress={handleCard}
                     seleccionado={item.id === seleccionadoId}
-                    style={{ width: anchoCard }}
+                    style={estiloCard}
                   />
                 )}
                 ItemSeparatorComponent={SeparadorHorizontal}
@@ -352,6 +367,7 @@ export default function PerdidosScreen() {
             data={visibles}
             keyExtractor={(reporte) => String(reporte.id)}
             renderItem={({ item }) => <ReporteCard reporte={item} onPress={abrirDetalle} />}
+            refreshControl={refresco}
             ListHeaderComponent={
               <SegmentedControl opciones={MODOS} valor={modo} onChange={setModo} variant="pill" />
             }
@@ -451,7 +467,12 @@ const styles = StyleSheet.create({
   },
   acciones: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xs,
+  },
+  refrescando: {
+    width: sizes.avatarSm,
+    height: sizes.avatarSm,
   },
   mapaArea: {
     flex: 1,

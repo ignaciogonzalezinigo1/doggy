@@ -25,6 +25,7 @@ import { FormModal } from '@/components/FormModal';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { useApp } from '@/context/AppContext';
+import { useRefresco } from '@/hooks/useRefresco';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { RegistroSanitario, TipoRegistro } from '@/types/models';
 import { textoEdad, TIPOS_REGISTRO } from '@/utils/etiquetas';
@@ -41,6 +42,7 @@ const PESTANAS = TIPOS_REGISTRO.map((t) => ({ valor: t.valor, label: t.pestana }
 export default function CarnetSanitarioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { mascotas, registros, cargando, error, recargar } = useApp();
+  const refresco = useRefresco();
 
   // --- Estado ---
   const [tipo, setTipo] = useState<TipoRegistro>('vacuna');
@@ -146,6 +148,7 @@ export default function CarnetSanitarioScreen() {
         data={historial}
         keyExtractor={(registro) => String(registro.id)}
         renderItem={({ item }) => <RegistroCard registro={item} onEditar={abrirEdicion} />}
+        refreshControl={refresco}
         ListHeaderComponent={encabezado}
         ListEmptyComponent={
           proximo ? undefined : (

@@ -26,6 +26,7 @@ import { SectionCard } from '@/components/SectionCard';
 import { useApp } from '@/context/AppContext';
 import { useCerrarReporte } from '@/hooks/useCerrarReporte';
 import { useRecuperarMascota } from '@/hooks/useRecuperarMascota';
+import { useRefresco } from '@/hooks/useRefresco';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import { textoEdad } from '@/utils/etiquetas';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
@@ -51,6 +52,7 @@ export default function PerfilMascotaScreen() {
   const { mascotas, registros, turnos, reportes, cargando, error, recargar } = useApp();
   const { cerrando, pedirCierre } = useCerrarReporte();
   const { recuperando, pedirRecuperacion } = useRecuperarMascota();
+  const refresco = useRefresco();
 
   // --- Datos derivados ---
   const mascota = useMemo(() => buscarMascota(mascotas, id), [mascotas, id]);
@@ -128,7 +130,11 @@ export default function PerfilMascotaScreen() {
   return (
     <View style={styles.screen}>
       <AppHeader backTo="/mascotas" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refresco}
+      >
         {encontrado && (
           <AvisoEncontrada
             reporte={encontrado}

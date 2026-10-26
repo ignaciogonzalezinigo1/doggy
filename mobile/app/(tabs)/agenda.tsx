@@ -19,6 +19,7 @@ import { EstadoVacio } from '@/components/EstadoVista';
 import { FormModal } from '@/components/FormModal';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { useApp } from '@/context/AppContext';
+import { useRefresco } from '@/hooks/useRefresco';
 import { colors, spacing, typography } from '@/theme';
 import type { CategoriaTurno, Turno } from '@/types/models';
 import { claveDeIso, claveDia, mismoDia, sumarMes, textoDiaCompleto } from '@/utils/calendario';
@@ -30,6 +31,7 @@ import { hoy as hoyLocal, parsearFecha } from '@/utils/fechas';
  */
 export default function AgendaScreen() {
   const { turnos, mascotas, error, recargar } = useApp();
+  const refresco = useRefresco();
   const hoy = useMemo(() => hoyLocal(), []);
 
   // --- Estado ---
@@ -114,7 +116,11 @@ export default function AgendaScreen() {
   return (
     <View style={styles.screen}>
       <AppHeader />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refresco}
+      >
         <View style={styles.encabezado}>
           <View style={styles.encabezadoTexto}>
             <Text style={styles.titulo}>Agenda</Text>

@@ -18,6 +18,7 @@ import { AvisoEncontrada } from '@/components/mascotas/AvisoEncontrada';
 import { PetCard } from '@/components/PetCard';
 import { useApp } from '@/context/AppContext';
 import { useRecuperarMascota } from '@/hooks/useRecuperarMascota';
+import { useRefresco } from '@/hooks/useRefresco';
 import { colors, sizes, spacing, typography } from '@/theme';
 import type { Mascota, ReportePerdida } from '@/types/models';
 import { reporteEncontrado } from '@/utils/selectores';
@@ -29,6 +30,7 @@ import { reporteEncontrado } from '@/utils/selectores';
 export default function MisMascotasScreen() {
   const { mascotas, reportes, cargando, error, recargar } = useApp();
   const { recuperando, pedirRecuperacion } = useRecuperarMascota();
+  const refresco = useRefresco();
 
   // --- Datos derivados ---
   /** Reportes "encontrado" activos de las mascotas del usuario. */
@@ -79,6 +81,7 @@ export default function MisMascotasScreen() {
         data={mascotas}
         keyExtractor={(mascota) => String(mascota.id)}
         renderItem={({ item }) => <PetCard mascota={item} onPress={abrirMascota} />}
+        refreshControl={refresco}
         ListHeaderComponent={
           <View style={styles.encabezado}>
             {encontradas.map((reporte) => (
