@@ -4,8 +4,8 @@
  * Mismo estilo que el Login: fondo teal y el formulario en una card clara.
  * Pide nombre, apellido, email, teléfono y contraseña con confirmación, y
  * valida todo localmente: nombre y apellido solo con letras, email con
- * formato válido, teléfono real (libphonenumber-js, con el mismo
- * `InputTelefono` y la misma casilla "Es un teléfono fijo" que el perfil) y contraseña de 8 a 64 caracteres,
+ * formato válido, teléfono argentino real (la regla de `telefonos.ts`, con el mismo
+ * `InputTelefono` con el +54 fijo y la misma casilla "Es un teléfono fijo" que el perfil) y contraseña de 8 a 64 caracteres,
  * sin espacios, con al menos una letra y un número. Cada campo tiene su largo máximo. Con todo válido crea la cuenta
  * contra la API, deja la sesión abierta y entra a la tab Mascotas con un
  * saludo que invita a completar el perfil. Si el servidor la rechaza (por

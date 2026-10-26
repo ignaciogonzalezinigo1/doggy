@@ -14,7 +14,7 @@
  */
 
 import { fechaIngresadaAIso, hoy, parsearFecha, parsearHora } from './fechas';
-import { aE164 } from './telefonos';
+import { interpretarTelefono } from './telefonos';
 
 /** Largo máximo de cada campo de texto de la app (es el `maxLength` del input). */
 export const LIMITES = {
@@ -22,7 +22,7 @@ export const LIMITES = {
   email: 100,
   password: 64,
   ubicacion: 60,
-  telefono: 20,
+  telefono: 25,
   nombreMascota: 30,
   raza: 40,
   senas: 200,
@@ -377,9 +377,9 @@ export function validarHora(texto: string): string | undefined {
 }
 
 /**
- * Valida un teléfono con libphonenumber-js (región AR), igual que el servidor:
- * se puede escribir como "11 4589-2310", "0299 15 455-4060" o
- * "+54 9 11 4589-2310", pero tiene que ser un número real.
+ * Valida un teléfono con la regla compartida con el servidor
+ * (`interpretarTelefono` de `telefonos.ts`, el mismo archivo en los dos repos):
+ * solo de la Argentina y un número real, escrito en cualquier formato habitual.
  * @param telefono texto ingresado
  * @returns mensaje de error o undefined
  */
@@ -387,10 +387,8 @@ export function validarTelefono(telefono: string): string | undefined {
   const valor = telefono.trim();
   if (!valor) return 'Ingresá un teléfono de contacto.';
   if (!/^\+?[\d\s\-().]+$/.test(valor)) return 'Usá solo números, espacios, guiones, paréntesis y "+".';
-  if (!aE164(valor)) {
-    return 'No es un número válido. Escribilo con la característica, por ejemplo 11 4589-2310 o 299 455-4060.';
-  }
-  return undefined;
+  const leido = interpretarTelefono(valor);
+  return leido.ok ? undefined : leido.error;
 }
 
 /**

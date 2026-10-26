@@ -11,7 +11,8 @@
 import { useState } from 'react';
 import { Alert, Linking } from 'react-native';
 
-import { enlaceWhatsApp, formatearTelefono } from '@/utils/telefonos';
+import { enlaceWhatsApp } from '@/utils/enlaces';
+import { formatearTelefono } from '@/utils/telefonos';
 import { PrimaryButton } from './PrimaryButton';
 
 type Props = {

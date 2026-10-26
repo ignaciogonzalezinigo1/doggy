@@ -61,7 +61,8 @@ import { CODIGO_MASCOTA_REGEX } from '@/utils/codigos';
 import { textoEdad } from '@/utils/etiquetas';
 import { CENTRO_CABA } from '@/utils/mapa';
 import { reporteActivo } from '@/utils/selectores';
-import { enlaceMapa, esCelular } from '@/utils/telefonos';
+import { enlaceMapa } from '@/utils/enlaces';
+import { esCelular } from '@/utils/telefonos';
 import {
   LIMITES,
   limpiarTexto,

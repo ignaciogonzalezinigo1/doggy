@@ -7,7 +7,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Alert, Linking, Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, sizes, spacing, typography } from '@/theme';
-import { enlaceTelefono, formatearTelefono } from '@/utils/telefonos';
+import { enlaceTelefono } from '@/utils/enlaces';
+import { formatearTelefono } from '@/utils/telefonos';
 
 type Props = {
   /** Teléfono guardado, en E.164 ("+5491145892310"). */

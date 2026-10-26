@@ -6,6 +6,8 @@
  * mostrar/ocultar y apaga la mayúscula automática y el corrector (el teclado
  * de iOS los aplica aunque el texto esté oculto); el padre igual puede pisarlos. Con `multiline` crece para textos largos (señas, descripciones)
  * y, si tiene `maxLength`, muestra debajo cuántos caracteres van del máximo.
+ * Con `prefijo` muestra un texto fijo, no editable, antes de lo que se escribe
+ * (el "+54" del teléfono).
  * Acepta el resto de las props de TextInput.
  */
 import { MaterialIcons } from '@expo/vector-icons';
@@ -35,6 +37,8 @@ type Props = Omit<TextInputProps, 'secureTextEntry' | 'style'> & {
   error?: string;
   /** Modo contraseña con botón para mostrar u ocultar. */
   password?: boolean;
+  /** Texto fijo antes del valor, que no se puede borrar ni editar (por ejemplo, "+54"). */
+  prefijo?: string;
 };
 
 /**
@@ -42,7 +46,7 @@ type Props = Omit<TextInputProps, 'secureTextEntry' | 'style'> & {
  * Se expone la ref del TextInput para poder pasar el foco al siguiente campo.
  */
 export const Input = forwardRef<TextInputInstance, Props>(function Input(
-  { label, icon, error, password = false, onFocus, onBlur, ...inputProps },
+  { label, icon, error, password = false, prefijo, onFocus, onBlur, ...inputProps },
   ref,
 ) {
   // --- Estado ---
@@ -88,6 +92,7 @@ export const Input = forwardRef<TextInputInstance, Props>(function Input(
             color={focused ? colors.tealLight : colors.outline}
           />
         )}
+        {!!prefijo && <Text style={styles.prefijo}>{prefijo}</Text>}
         <TextInput
           ref={ref}
           style={[styles.input, inputProps.multiline && styles.inputMultiline]}
@@ -174,6 +179,10 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     // En web el navegador agrega su propio contorno de foco; el borde del campo ya lo indica.
     outlineWidth: 0,
+  },
+  prefijo: {
+    ...typography.bodyMd,
+    color: colors.onSurfaceVariant,
   },
   inputMultiline: {
     height: undefined,
