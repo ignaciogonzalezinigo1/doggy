@@ -2,7 +2,7 @@
  * Menú de acciones rápidas de una mascota, el que se abre al mantener
  * presionada su card en "Mis Mascotas".
  *
- * Opciones: Editar y Reportar como perdida (o "Ya apareció" si tiene un
+ * Opciones: Editar y Reportar pérdida (o "Ya apareció" si tiene un
  * reporte activo). Son las mismas acciones que tiene el perfil de la
  * mascota, que sigue siendo la forma tocable de llegar a ellas. El QR se
  * descarga y se comparte solo desde el perfil (`QrIdentificacion`).
@@ -58,7 +58,7 @@ export function useMenuMascota(): UseMenuMascota {
         reporte
           ? { texto: 'Ya apareció', accion: () => pedirCierre(reporte) }
           : {
-              texto: 'Reportar como perdida',
+              texto: 'Reportar pérdida',
               accion: () =>
                 router.push({ pathname: '/mi-mascota-perdida', params: { mascotaId: id } }),
             },

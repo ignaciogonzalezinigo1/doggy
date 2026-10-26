@@ -239,7 +239,7 @@ export default function ReportarScreen() {
       raza: identificada ? undefined : validarRaza(raza, false),
       descripcion: validarTexto(descripcion, {
         requerido: identificada
-          ? 'Contá dónde y cómo la encontraste.'
+          ? 'Contá dónde y cómo fue.'
           : 'Describí cómo es para que su familia la reconozca.',
         min: 5,
         max: LIMITES.descripcion,
@@ -301,38 +301,48 @@ export default function ReportarScreen() {
           {identificada ? (
             /* Quién es: lo que el servidor deja ver de una mascota ajena, de solo lectura */
             <View style={styles.card}>
+              {/* Arriba: foto, nombre, raza y edad */}
               <View style={styles.identificada}>
-                <Avatar foto={identificada.foto} nombre={identificada.nombre} size={sizes.avatarLg - 32} />
+                <Avatar foto={identificada.foto} nombre={identificada.nombre} size={sizes.avatarMd} />
                 <View style={styles.identificadaTexto}>
-                  <Text style={styles.identificadaNombre}>{identificada.nombre}</Text>
+                  <Text style={styles.identificadaNombre} numberOfLines={2}>
+                    {identificada.nombre}
+                  </Text>
                   <Text style={styles.identificadaDato}>
                     {`${identificada.raza} · ${textoEdad(identificada.edadMeses)}`}
                   </Text>
-                  <Text style={styles.identificadaDato}>{`Su familia: ${identificada.dueno.nombre}`}</Text>
-                  {perdida && (
-                    <Text style={styles.identificadaPerdida}>Está perdida: avisale a su familia.</Text>
-                  )}
-                  {identificada.dueno.telefono && (
-                    <LinkTelefono telefono={identificada.dueno.telefono} nombre={identificada.dueno.nombre} />
-                  )}
-                  {perdida && identificada.dueno.telefono && esCelular(identificada.dueno.telefono) && (
-                    <BotonWhatsApp
-                      titulo="Avisar por WhatsApp"
-                      telefono={identificada.dueno.telefono}
-                      armarMensaje={() => mensajeHallazgo(identificada)}
-                    />
-                  )}
                 </View>
               </View>
-              <PrimaryButton
-                title="Escanear otra"
-                icon="qr-code-scanner"
-                iconLeft
-                variant="outline"
-                size="sm"
-                onPress={escanearOtra}
-                style={styles.escanearOtra}
-              />
+
+              {/* Debajo, a todo el ancho: familia, aviso de perdida y teléfono */}
+              <View style={styles.identificadaDetalle}>
+                <Text style={styles.identificadaDato}>{`Su familia: ${identificada.dueno.nombre}`}</Text>
+                {perdida && (
+                  <Text style={styles.identificadaPerdida}>Se perdió: avisale a su familia.</Text>
+                )}
+                {identificada.dueno.telefono && (
+                  <LinkTelefono telefono={identificada.dueno.telefono} nombre={identificada.dueno.nombre} />
+                )}
+              </View>
+
+              {/* Botones del mismo ancho, uno debajo del otro */}
+              <View style={styles.identificadaAcciones}>
+                {perdida && identificada.dueno.telefono && esCelular(identificada.dueno.telefono) && (
+                  <BotonWhatsApp
+                    titulo="Avisar por WhatsApp"
+                    telefono={identificada.dueno.telefono}
+                    armarMensaje={() => mensajeHallazgo(identificada)}
+                  />
+                )}
+                <PrimaryButton
+                  title="Escanear otra"
+                  icon="qr-code-scanner"
+                  iconLeft
+                  variant="outline"
+                  size="sm"
+                  onPress={escanearOtra}
+                />
+              </View>
             </View>
           ) : (
             <EscanerQr onLectura={handleLectura} abrirAlMontar={reabrirCamara} />
@@ -350,7 +360,7 @@ export default function ReportarScreen() {
               /* El hallazgo: lo único que completa quien la encontró */
               <View style={styles.card}>
                 <Input
-                  label="¿Dónde y cómo la encontraste?"
+                  label="¿Dónde y cómo fue?"
                   placeholder="Ej: la vi en la plaza, tiene collar rojo"
                   value={descripcion}
                   onChangeText={(texto) => {
@@ -477,7 +487,7 @@ export default function ReportarScreen() {
               {identificada ? (
                 <View style={styles.publicar}>
                   <PrimaryButton
-                    title="Avisarle a su familia que la encontré"
+                    title="Avisarle a su familia"
                     icon="volunteer-activism"
                     variant="primary"
                     onPress={handleReportar}
@@ -544,9 +554,6 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     flex: 1,
   },
-  escanearOtra: {
-    alignSelf: 'flex-start',
-  },
   publicar: {
     gap: spacing.sm,
   },
@@ -563,6 +570,12 @@ const styles = StyleSheet.create({
   identificadaTexto: {
     flex: 1,
     gap: spacing.xs,
+  },
+  identificadaDetalle: {
+    gap: spacing.xs,
+  },
+  identificadaAcciones: {
+    gap: spacing.sm,
   },
   identificadaNombre: {
     ...typography.headlineMd,

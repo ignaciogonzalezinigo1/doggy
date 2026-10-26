@@ -1,5 +1,5 @@
 /**
- * Hook para "Ya la recuperé": la familia ya tiene de vuelta a una mascota que
+ * Hook para "Ya volvió a casa": la familia ya tiene de vuelta a una mascota que
  * alguien reportó como encontrada.
  *
  * Pide confirmación con el Alert nativo y cierra el reporte "encontrado" y,
@@ -69,10 +69,10 @@ export function useRecuperarMascota(): UseRecuperarMascota {
     (encontrado: ReportePerdida) => {
       Alert.alert(
         `¿Ya recuperaste a ${encontrado.nombre}?`,
-        'Se cierra el aviso de que la encontraron y, si estaba reportada como perdida, también ese reporte. Los dos salen del mapa y no se pueden volver a abrir.',
+        'Se cierra el aviso de hallazgo y, si había un reporte de pérdida, también ese. Los dos salen del mapa y no se pueden volver a abrir.',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Ya la recuperé', onPress: () => recuperar(encontrado) },
+          { text: 'Ya volvió a casa', onPress: () => recuperar(encontrado) },
         ],
       );
     },

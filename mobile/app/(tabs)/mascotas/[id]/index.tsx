@@ -5,10 +5,10 @@
  * raza y edad, el botón para editar sus datos, el QR de identificación para la placa del collar, las señas
  * particulares, un resumen del carnet sanitario y de los turnos, y el acceso
  * para reportarla como perdida ("Se perdió mi mascota", con sus datos ya cargados).
- * Si ya está reportada como perdida, en lugar de ese botón muestra el aviso
+ * Si tiene un reporte de pérdida activo, en lugar de ese botón muestra el aviso
  * con la zona y el radio de búsqueda, "Editar reporte" y "Ya apareció".
  * Si alguien la reportó como encontrada, arriba de todo aparece
- * "¡Encontraron a …!" con "Ya la recuperé".
+ * "¡Encontraron a …!" con "Ya volvió a casa".
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -228,7 +228,7 @@ export default function PerfilMascotaScreen() {
           <View style={styles.perdida} accessibilityLiveRegion="polite">
             <View style={styles.perdidaHeader}>
               <MaterialIcons name="campaign" size={sizes.iconMd} color={colors.tertiaryContainer} />
-              <Text style={styles.perdidaTitulo}>Reportada como perdida</Text>
+              <Text style={styles.perdidaTitulo}>Reporte de pérdida activo</Text>
             </View>
             <Text style={styles.perdidaTexto}>
               {`Desde ${tiempoTranscurrido(reporte.fecha).toLowerCase()} · ${reporte.zona}`}
@@ -258,7 +258,7 @@ export default function PerfilMascotaScreen() {
           </View>
         ) : (
           <PrimaryButton
-            title="Reportar como perdida"
+            title="Reportar pérdida"
             icon="campaign"
             variant="secondary"
             onPress={reportarPerdida}

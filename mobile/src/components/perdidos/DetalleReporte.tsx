@@ -89,7 +89,7 @@ export function DetalleReporte({
       <View style={styles.datos}>
         <Dato
           icono="schedule"
-          etiqueta={perdido ? 'Se perdió' : 'Encontrada'}
+          etiqueta={perdido ? 'Se perdió' : 'Se encontró'}
           valor={`${tiempoTranscurrido(reporte.fecha)} · ${formatearFecha(reporte.fecha)} ${formatearHora(reporte.fecha)}`}
         />
         <Dato

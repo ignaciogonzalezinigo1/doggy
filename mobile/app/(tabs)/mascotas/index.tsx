@@ -5,7 +5,7 @@
  * card abre su perfil, mantenerla presionada abre un menú de acciones
  * rápidas (ver `PetCard`) y el FAB mostaza lleva al alta de una mascota nueva.
  * Arriba de la lista, un aviso "¡Encontraron a …!" por cada mascota que
- * alguien reportó como encontrada, con "Ya la recuperé".
+ * alguien reportó como encontrada, con "Ya volvió a casa".
  */
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';

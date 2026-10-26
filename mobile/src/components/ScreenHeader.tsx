@@ -48,7 +48,13 @@ export function ScreenHeader({
     <View style={[styles.header, esBarra && [styles.bar, { paddingTop: insetArriba + spacing.sm }]]}>
       <BackButton fallback={fallback} />
       <View style={styles.texts}>
-        <Text style={[styles.title, esBarra && styles.titleBar]} numberOfLines={1}>
+        {/* En pantallas chicas el título se achica (hasta 75 %) antes de cortarse con "…". */}
+        <Text
+          style={[styles.title, esBarra && styles.titleBar]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
           {title}
         </Text>
         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}

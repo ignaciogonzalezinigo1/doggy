@@ -5,7 +5,7 @@
  * Muestra dónde y cuándo la encontraron, la descripción que dejó quien la
  * encontró y, si viene, su contacto con un link para llamarlo y, si es un
  * celular, "Escribirle por WhatsApp" con un mensaje ya escrito (con el punto
- * del reporte en Google Maps). "Ya la recuperé" pide confirmación y cierra el
+ * del reporte en Google Maps). "Ya volvió a casa" pide confirmación y cierra el
  * reporte (y el de perdida, si había).
  * Se muestra en Mis Mascotas y en el perfil de la mascota.
  */
@@ -36,7 +36,7 @@ type Props = {
 /**
  * Aviso de mascota encontrada.
  * @param props ver `Props`
- * @returns la card con los datos del reporte y "Ya la recuperé"
+ * @returns la card con los datos del reporte y "Ya volvió a casa"
  */
 export function AvisoEncontrada({ reporte, onRecuperada, recuperando = false }: Props) {
   const { usuario } = useApp();
@@ -57,7 +57,9 @@ export function AvisoEncontrada({ reporte, onRecuperada, recuperando = false }: 
 
       {reporte.contacto && (
         <View style={styles.contacto}>
-          <Text style={styles.contactoTexto}>La encontró {reporte.contacto.nombre}. Llamá para coordinar la vuelta:</Text>
+          <Text style={styles.contactoTexto}>
+            Avisó {reporte.contacto.nombre}. Llamá para coordinar la vuelta:
+          </Text>
           <LinkTelefono telefono={reporte.contacto.telefono} nombre={reporte.contacto.nombre} />
           {esCelular(reporte.contacto.telefono) && (
             <BotonWhatsApp
@@ -73,7 +75,7 @@ export function AvisoEncontrada({ reporte, onRecuperada, recuperando = false }: 
       )}
 
       <PrimaryButton
-        title="Ya la recuperé"
+        title="Ya volvió a casa"
         icon="home"
         iconLeft
         onPress={() => onRecuperada(reporte)}
