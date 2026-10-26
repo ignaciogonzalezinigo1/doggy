@@ -18,6 +18,7 @@ import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
 import { enlaceMapa } from '@/utils/enlaces';
+import { botonCierre } from '@/utils/etiquetas';
 import { esCelular } from '@/utils/telefonos';
 import { BotonWhatsApp } from '../BotonWhatsApp';
 import { LinkTelefono } from '../LinkTelefono';
@@ -76,8 +77,8 @@ export function AvisoEncontrada({ reporte, onRecuperada, recuperando = false }: 
       )}
 
       <PrimaryButton
-        title="Ya volvió a casa"
-        icon="home"
+        title={botonCierre(true).texto}
+        icon={botonCierre(true).icono}
         iconLeft
         onPress={() => onRecuperada(reporte)}
         loading={recuperando}

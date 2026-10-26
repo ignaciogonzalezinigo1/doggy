@@ -2,7 +2,7 @@
  * Menú de acciones rápidas de una mascota, el que se abre al mantener
  * presionada su card en "Mis Mascotas".
  *
- * Opciones: Editar y Reportar pérdida (o "Ya apareció" si tiene un
+ * Opciones: Editar y Reportar pérdida (o "Ya apareció", "Ya volvió a casa" si alguien la encontró, si tiene un
  * reporte activo). Son las mismas acciones que tiene el perfil de la
  * mascota, que sigue siendo la forma tocable de llegar a ellas. El QR se
  * descarga y se comparte solo desde el perfil (`QrIdentificacion`).
@@ -17,7 +17,8 @@ import { ActionSheetIOS, Alert, Platform } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import type { Mascota } from '@/types/models';
-import { reporteActivo } from '@/utils/selectores';
+import { botonCierre } from '@/utils/etiquetas';
+import { hallazgoDe, reporteActivo } from '@/utils/selectores';
 import { useCerrarReporte } from './useCerrarReporte';
 
 type Opcion = {
@@ -56,7 +57,7 @@ export function useMenuMascota(): UseMenuMascota {
           accion: () => router.push({ pathname: '/mascotas/[id]/editar', params: { id } }),
         },
         reporte
-          ? { texto: 'Ya apareció', accion: () => pedirCierre(reporte) }
+          ? { texto: botonCierre(!!hallazgoDe(reportes, reporte)).texto, accion: () => pedirCierre(reporte) }
           : {
               texto: 'Reportar pérdida',
               accion: () =>

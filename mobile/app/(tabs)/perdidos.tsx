@@ -3,8 +3,8 @@
  *
  * Modo Mapa: un marker por reporte (mostaza perdido, teal encontrado) y uno
  * solo por mascota: el "encontrado" de una mascota con un perdido activo no se
- * dibuja aparte; el perdido lleva el tilde y "¡La encontraron!" y el hallazgo
- * se ve en su detalle. Botón
+ * dibuja aparte (tampoco con el filtro "Encontrados"); el perdido lleva el
+ * tilde y "¡La encontraron!" y el hallazgo se ve en su detalle. Botón
  * "mi ubicación" que centra el mapa con el GPS y un carrusel de cards; tocar
  * un marker o una card centra el mapa en ese reporte y abre la hoja de
  * detalle con todo lo que se cargó al reportarlo. Modo Lista: las mismas
@@ -13,7 +13,8 @@
  * El FAB pregunta qué se reporta: "Se perdió mi mascota" o "Encontré una mascota".
  * Si llega `reporteId` por params (después de reportar), se centra en ese reporte.
  * Si el reporte es de una mascota del usuario, desde el detalle se lo puede
- * editar (abre "Se perdió mi mascota" en modo edición) o cerrar con "Ya apareció".
+ * editar (abre "Se perdió mi mascota" en modo edición) o cerrar con "Ya apareció"
+ * ("Ya volvió a casa" si alguien la encontró).
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -50,12 +51,11 @@ import { Coordenadas, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
 import {
-  filtrarReportes,
   FiltroEstado,
   hallazgosPorPerdido,
   puedeGestionarReporte,
   reporteActivo,
-  unoPorMascota,
+  reportesDePerdidos,
 } from '@/utils/selectores';
 import { LIMITES } from '@/utils/validaciones';
 
@@ -110,9 +110,9 @@ export default function PerdidosScreen() {
   const { cerrando, pedirCierre } = useCerrarReporte(cerrarDetalle);
 
   // --- Datos derivados ---
-  // Un solo pin y una sola card por mascota: el encontrado de un perdido de la lista se ve en su detalle.
+  // Un solo pin y una sola card por mascota, también con el filtro "Encontrados".
   const visibles = useMemo(
-    () => unoPorMascota(filtrarReportes(reportes, busqueda, filtro)),
+    () => reportesDePerdidos(reportes, busqueda, filtro),
     [reportes, busqueda, filtro],
   );
   /** Encontrado activo de cada perdido, por id del perdido (con todos los reportes, no solo los filtrados). */

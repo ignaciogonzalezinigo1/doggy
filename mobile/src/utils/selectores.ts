@@ -163,6 +163,29 @@ export function reporteEncontrado(
 }
 
 /**
+ * Reportes de la pantalla Perdidos (mapa, carrusel y lista), con un solo pin
+ * por mascota. Con el filtro "Encontrados", una mascota perdida que alguien
+ * ya encontró aparece como su perdido (con "¡La encontraron!"), no como el
+ * encontrado suelto; los encontrados sin mascota, o de mascotas sin perdido
+ * activo, aparecen como siempre. Con "Perdidos" y "Todos" es el filtro común.
+ * @param reportes todos los reportes
+ * @param busqueda texto buscado (nombre o zona)
+ * @param estado filtro de estado
+ * @returns los reportes a mostrar, del más reciente al más viejo
+ */
+export function reportesDePerdidos(
+  reportes: ReportePerdida[],
+  busqueda: string,
+  estado: FiltroEstado,
+): ReportePerdida[] {
+  if (estado !== 'encontrado') return unoPorMascota(filtrarReportes(reportes, busqueda, estado));
+  const encontrados = filtrarReportes(reportes, busqueda, 'todos').filter(
+    (r) => r.estado === 'encontrado' || !!hallazgoDe(reportes, r),
+  );
+  return unoPorMascota(encontrados);
+}
+
+/**
  * Hallazgo de un reporte de perdido: el "encontrado" activo de la misma
  * mascota. Mientras la familia no la recupera, los dos siguen activos y el
  * perdido muestra "¡La encontraron!" con el lugar y la hora del hallazgo.
@@ -196,7 +219,7 @@ export function hallazgosPorPerdido(reportes: ReportePerdida[]): Map<number, Rep
  * Un solo pin por mascota: saca de la lista los "encontrado" de una mascota
  * cuyo perdido también está en la lista, porque su ubicación se ve en el
  * detalle de ese perdido. Los encontrados sin mascota, o de una mascota sin
- * perdido en la lista (por ejemplo, con el filtro "Encontrados"), quedan.
+ * perdido en la lista, quedan.
  * @param reportes reportes ya filtrados
  * @returns los mismos, sin los encontrados que ya representa su perdido
  */

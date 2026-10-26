@@ -18,7 +18,7 @@
  *
  * Si llega `reporteId`, la pantalla edita ese reporte en vez de crear uno:
  * arranca con su punto, radio e información, la mascota queda fija
- * y "Guardar cambios" lo actualiza. "Ya apareció" pide confirmación, cierra
+ * y "Guardar cambios" lo actualiza. "Ya apareció" ("Ya volvió a casa" si alguien la encontró) pide confirmación, cierra
  * el reporte (sale del mapa) y cierra el modal.
  */
 import { MaterialIcons } from '@expo/vector-icons';
@@ -50,9 +50,10 @@ import { useApp } from '@/context/AppContext';
 import { useCerrarReporte } from '@/hooks/useCerrarReporte';
 import { Coordenadas, DireccionLegible, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
+import { botonCierre } from '@/utils/etiquetas';
 import { CENTRO_CABA, RADIO_POR_DEFECTO, RADIOS_BUSQUEDA, textoRadio } from '@/utils/mapa';
 import type { ReportePerdida } from '@/types/models';
-import { buscarMascota, reporteActivo } from '@/utils/selectores';
+import { buscarMascota, hallazgoDe, reporteActivo } from '@/utils/selectores';
 import { LIMITES, limpiarTexto, validarTexto } from '@/utils/validaciones';
 
 /** Aviso si la mascota ya tiene un reporte de perdido activo (el mismo texto que el 409 del servidor). */
@@ -399,8 +400,8 @@ export default function MiMascotaPerdidaScreen() {
                 style={styles.boton}
               />
               <PrimaryButton
-                title="Ya apareció"
-                icon="celebration"
+                title={botonCierre(!!hallazgoDe(reportes, editado)).texto}
+                icon={botonCierre(!!hallazgoDe(reportes, editado)).icono}
                 iconLeft
                 variant="outline"
                 onPress={() => pedirCierre(editado)}

@@ -17,7 +17,7 @@ import { Alert } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import type { ReportePerdida } from '@/types/models';
-import { textoResultado } from '@/utils/etiquetas';
+import { botonCierre, textoResultado } from '@/utils/etiquetas';
 import { hallazgoDe } from '@/utils/selectores';
 
 type UseCerrarReporte = {
@@ -77,7 +77,7 @@ export function useCerrarReporte(onCerrado?: (reporte: ReportePerdida) => void):
           : 'El reporte sale del mapa y deja de verse para los demás. No se puede volver a abrir.',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: encontrada ? 'Ya volvió a casa' : 'Ya apareció', onPress: () => cerrar(reporte) },
+          { text: botonCierre(encontrada).texto, onPress: () => cerrar(reporte) },
         ],
       );
     },

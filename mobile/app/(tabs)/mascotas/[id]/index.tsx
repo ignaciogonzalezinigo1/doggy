@@ -6,7 +6,8 @@
  * particulares, un resumen del carnet sanitario y de los turnos, y el acceso
  * para reportarla como perdida ("Se perdió mi mascota", con sus datos ya cargados).
  * Si tiene un reporte de pérdida activo, en lugar de ese botón muestra el aviso
- * con la zona y el radio de búsqueda, "Editar reporte" y "Ya apareció".
+ * con la zona y el radio de búsqueda, "Editar reporte" y "Ya apareció" ("Ya
+ * volvió a casa" si alguien la encontró).
  * Si alguien la reportó como encontrada, arriba de todo aparece
  * "¡Encontraron a …!" con "Ya volvió a casa".
  */
@@ -28,7 +29,7 @@ import { useCerrarReporte } from '@/hooks/useCerrarReporte';
 import { useRecuperarMascota } from '@/hooks/useRecuperarMascota';
 import { useRefresco } from '@/hooks/useRefresco';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
-import { textoEdad } from '@/utils/etiquetas';
+import { botonCierre, textoEdad } from '@/utils/etiquetas';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
 import { textoRadio } from '@/utils/mapa';
 import { volver } from '@/utils/navegacion';
@@ -252,8 +253,8 @@ export default function PerfilMascotaScreen() {
                 style={styles.perdidaBoton}
               />
               <PrimaryButton
-                title="Ya apareció"
-                icon="celebration"
+                title={botonCierre(!!encontrado).texto}
+                icon={botonCierre(!!encontrado).icono}
                 iconLeft
                 size="sm"
                 onPress={() => pedirCierre(reporte)}

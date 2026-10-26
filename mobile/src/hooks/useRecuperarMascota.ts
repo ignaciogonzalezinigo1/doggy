@@ -17,6 +17,7 @@ import { Alert } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import type { ReportePerdida } from '@/types/models';
+import { botonCierre } from '@/utils/etiquetas';
 
 type UseRecuperarMascota = {
   /** true mientras se cierran los reportes. */
@@ -68,7 +69,7 @@ export function useRecuperarMascota(): UseRecuperarMascota {
         'Se cierra el aviso de hallazgo y, si había un reporte de pérdida, también ese. Los dos salen del mapa y no se pueden volver a abrir.',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Ya volvió a casa', onPress: () => recuperar(encontrado) },
+          { text: botonCierre(true).texto, onPress: () => recuperar(encontrado) },
         ],
       );
     },

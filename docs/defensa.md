@@ -153,8 +153,12 @@ No. El perdido sigue activo hasta que la familia la tiene de vuelta, porque enco
 → `doggy/mobile/src/utils/selectores.ts` (`hallazgoDe`), `doggy/mobile/src/components/perdidos/DetalleReporte.tsx`
 
 **¿Por qué un solo pin por mascota?**
-Para que el mapa no muestre la misma mascota dos veces (perdida en un lugar y encontrada en otro). Si un encontrado tiene el `mascotaId` de una mascota con un perdido en la lista, no se dibuja aparte: su ubicación está en el detalle del perdido. Los encontrados sin mascota, o de mascotas no perdidas, se dibujan igual que antes.
-→ `doggy/mobile/src/utils/selectores.ts` (`unoPorMascota`), `doggy/mobile/app/(tabs)/perdidos.tsx`
+Para que el mapa no muestre la misma mascota dos veces (perdida en un lugar y encontrada en otro). Si un encontrado tiene el `mascotaId` de una mascota con un perdido en la lista, no se dibuja aparte: su ubicación está en el detalle del perdido. Con el filtro "Encontrados", esas mascotas aparecen como su perdido con "¡La encontraron!", no como el encontrado suelto. Los encontrados sin mascota, o de mascotas no perdidas, se dibujan igual que antes.
+→ `doggy/mobile/src/utils/selectores.ts` (`unoPorMascota`, `reportesDePerdidos`), `doggy/mobile/app/(tabs)/perdidos.tsx`
+
+**¿Por qué a veces dice "Ya apareció" y a veces "Ya volvió a casa"?**
+Porque no es lo mismo: "Ya volvió a casa" cierra un perdido que alguien encontró (o el aviso "¡Encontraron a …!") y queda "Devuelta a su familia"; "Ya apareció" cierra un perdido sin encontrado y queda "Apareció". El texto sale de una sola función, `botonCierre`, en todos los botones y confirmaciones.
+→ `doggy/mobile/src/utils/etiquetas.ts`
 
 **¿Quién decide si quedó "Devuelta a su familia" o "Apareció"?**
 El servidor, al cerrar (`PATCH { cerrado: true }`): un perdido con un encontrado activo, o un encontrado cerrado por alguien asignado a la mascota ("Ya volvió a casa"), cierra los dos reportes en una transacción con `resultado: "devuelta"` y la misma fecha; un perdido sin encontrado ("Ya apareció") queda `"aparecio"`. Así no depende de que la app mande dos pedidos en orden, y el resultado no se puede inventar desde el cliente. Quien no es el autor ni está asignado a la mascota no puede cerrar (403).

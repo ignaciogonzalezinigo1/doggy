@@ -150,6 +150,17 @@ export function categoriaTurno(categoria: CategoriaTurno): (typeof CATEGORIAS_TU
 /** Marca de un perdido que alguien encontró y su familia todavía no recuperó. */
 export const TEXTO_HALLAZGO = '¡La encontraron! Esperando que su familia la recupere';
 
+/**
+ * Texto del botón (y de la confirmación) para cerrar un perdido, el mismo en
+ * toda la app: "Ya volvió a casa" si alguien la encontró (o desde
+ * "¡Encontraron a …!"), "Ya apareció" si no.
+ * @param encontrada true si el perdido tiene un encontrado activo
+ * @returns el texto y el ícono del botón
+ */
+export function botonCierre(encontrada: boolean): { texto: string; icono: 'home' | 'celebration' } {
+  return encontrada ? { texto: 'Ya volvió a casa', icono: 'home' } : { texto: 'Ya apareció', icono: 'celebration' };
+}
+
 /** Texto de cada resultado de un reporte cerrado. */
 const RESULTADOS_REPORTE: Record<ResultadoReporte, string> = {
   devuelta: 'Devuelta a su familia',

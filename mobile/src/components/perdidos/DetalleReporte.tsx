@@ -20,7 +20,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fuenteFoto } from '@/data/fotos';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
-import { TEXTO_HALLAZGO } from '@/utils/etiquetas';
+import { botonCierre, TEXTO_HALLAZGO } from '@/utils/etiquetas';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
 import { textoRadio } from '@/utils/mapa';
 import { Avatar } from '../Avatar';
@@ -156,8 +156,8 @@ export function DetalleReporte({
           )}
           {onYaAparecio && (
             <PrimaryButton
-              title={hallazgo ? 'Ya volvió a casa' : 'Ya apareció'}
-              icon={hallazgo ? 'home' : 'celebration'}
+              title={botonCierre(!!hallazgo).texto}
+              icon={botonCierre(!!hallazgo).icono}
               iconLeft
               onPress={() => onYaAparecio(reporte)}
               loading={cerrando}
