@@ -110,12 +110,16 @@ El seed de `doggy-backend` carga los datos de la demo. **Todos los usuarios tien
 
 | Usuario | Email | Para probar |
 | --- | --- | --- |
-| Sofía Romero | `sofia.romero@mail.com` | La usuaria principal: tutora de Luna, Roco y Milo, con carnet, turnos y reportes en CABA |
-| Lucía Gómez | `lucia.gomez@mail.com` | Tutora de Toby. Sofía puede sumarlo como invitada con el código **`TOBY2026`** (Perfil → Tengo un código de asignación) |
+| Sofía Romero | `sofia.romero@mail.com` | La usuaria principal: Luna, Roco y Milo, con carnet (refuerzos próximos y vencidos), turnos y "¡Encontraron a Milo!" con WhatsApp a Valentina |
+| Lucía Gómez | `lucia.gomez@mail.com` | Tutora de Toby. Escaneando el QR de Pipa (perdida) ve el celular de Julián y "Avisar por WhatsApp"; el de Luna, solo "Su familia: Sofía". Sofía puede sumar a Toby con el código **`TOBY2026`** (Perfil → Tengo un código de asignación) |
+| Julián Fernández | `julian.fernandez@mail.com` | Tutor de Pipa, perdida en Caballito: desde su perfil se descarga o comparte el QR para escanearlo con otra cuenta |
 | Carlos Romero | `carlos.romero@mail.com` | Co-tutor (dueño) de Luna: sirve para ver la misma mascota desde otra cuenta |
 | Marcos Díaz | `marcos.diaz@mail.com` | Paseador de Roco (invitado): no puede generar códigos de asignación |
+| Vet. San Roque | `contacto@vetsanroque.com` | Clínica con teléfono fijo: no ofrece WhatsApp |
 
-La lista completa está en el README de `doggy-backend`. También se puede crear una cuenta nueva desde "Registrarme". Para volver a la demo limpia: `npm run db:reset` en `doggy-backend`.
+La lista completa está en el README de `doggy-backend`, y el seed la imprime al terminar. También se puede crear una cuenta nueva desde "Registrarme". Para volver a la demo limpia: `npm run db:reset` en `doggy-backend` (borra los datos locales).
+
+Las fotos de la demo son de Unsplash (Licencia de Unsplash); el autor y el link de cada una están en [CREDITOS.md](CREDITOS.md).
 
 ## Arquitectura
 

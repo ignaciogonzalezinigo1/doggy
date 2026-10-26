@@ -250,3 +250,14 @@ SQLite no guarda listas. La ruta las convierte a `etiquetas: string[]` antes de 
 **¿Cómo prueban la API?**
 `npm test` en `doggy-backend`: más de 250 chequeos con `curl` contra una base aparte (`test.db`) y la API en el puerto 3001, con todos los casos de error y de permisos entre usuarios.
 → `doggy-backend/scripts/probar.sh`
+
+## Guion de demo
+
+Antes: `npm run db:reset` en `doggy-backend` (deja la demo limpia y las fechas al día). Contraseña de todos: `doggy1234`.
+
+1. **Sofía** (`sofia.romero@mail.com`). Mis Mascotas: arriba aparece "¡Encontraron a Milo!", con dónde y cuándo, y "Escribirle por WhatsApp" a Valentina. Abrir Luna → Carnet: próximo refuerzo de la antirrábica, la séxtuple con el refuerzo vencido, desparasitaciones y "Análisis de sangre" en Otros. Tocar "Ver etiqueta" si hay una cargada y hacer zoom. Roco tiene una sola vacuna: deslizarla para mostrar "Eliminar" (cancelar). Agenda: turnos pasados y próximos.
+2. **Sofía**, Perdidos: mapa con 9 reportes en Palermo, Belgrano, Villa Urquiza, Caballito, Almagro y Núñez; filtrar perdidos y encontrados.
+3. **Julián** (`julian.fernandez@mail.com`). Perfil de Pipa: está reportada como perdida; "Descargar QR" o "Compartir QR" para tener la imagen.
+4. **Lucía** (`lucia.gomez@mail.com`). "Encontré una mascota" → escanear el QR de Pipa (con la cámara o desde la imagen): tarjeta de solo lectura con "Su familia: Julián", su celular y "Avisar por WhatsApp" (con la ubicación en Google Maps). Escanear el QR de Luna: solo "Su familia: Sofía", sin teléfono, porque no está perdida.
+5. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada.
+6. **Vet. San Roque** (`contacto@vetsanroque.com`): teléfono fijo, así que en sus avisos no aparece WhatsApp.
