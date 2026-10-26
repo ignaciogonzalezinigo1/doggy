@@ -6,7 +6,8 @@
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { fuenteFoto } from '@/data/fotos';
 import { colors, radius, sizes, spacing, typography } from '@/theme';
@@ -44,7 +45,7 @@ export function VerEtiqueta({ registro, color = colors.primary }: Props) {
         accessibilityHint="Abre la foto de la etiqueta en grande"
         style={({ pressed }) => [styles.boton, { borderColor: color }, pressed && styles.pressed]}
       >
-        <Image source={fuente} style={styles.miniatura} />
+        <Image source={fuente} style={styles.miniatura} contentFit="cover" />
         <Text style={[styles.texto, { color }]}>Ver etiqueta</Text>
         <MaterialIcons name="zoom-in" size={sizes.iconSm} color={color} />
       </Pressable>

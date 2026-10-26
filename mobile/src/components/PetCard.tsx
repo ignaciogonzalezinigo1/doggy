@@ -20,6 +20,7 @@
  * de la mascota. Con lector de pantalla, la card ofrece la acción "Más
  * opciones" (`accessibilityActions`).
  */
+import { memo } from 'react';
 import * as Haptics from 'expo-haptics';
 import { type AccessibilityActionEvent, StyleSheet, Text, View } from 'react-native';
 import {
@@ -54,7 +55,7 @@ const ESCALA_PRESIONADA = 0.96;
  * @param props.onPress se llama con la mascota al tocar la card
  * @returns la card
  */
-export function PetCard({ mascota, onPress }: Props) {
+function PetCardBase({ mascota, onPress }: Props) {
   const { abrirMenu } = useMenuMascota();
 
   // --- Estado ---
@@ -132,6 +133,9 @@ export function PetCard({ mascota, onPress }: Props) {
   );
 }
 
+
+/** Memoizada: en una lista solo se vuelve a dibujar si cambian sus props. */
+export const PetCard = memo(PetCardBase);
 // --- Estilos ---
 const styles = StyleSheet.create({
   card: {

@@ -15,7 +15,7 @@
  * formulario de edición.
  */
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useEliminarRegistro } from '@/hooks/useEliminarRegistro';
@@ -54,7 +54,7 @@ function esVeterinario(profesional: string): boolean {
  * @param props.onEditar se llama al tocar el lápiz
  * @returns la card
  */
-export function RegistroCard({ registro, onEditar }: Props) {
+function RegistroCardBase({ registro, onEditar }: Props) {
   const tipo = TIPOS_REGISTRO.find((t) => t.valor === registro.tipo) ?? TIPOS_REGISTRO[0];
   const handleEliminar = useEliminarRegistro(registro);
 
@@ -146,6 +146,9 @@ function Fila({ icono, etiqueta, valor }: FilaProps) {
   );
 }
 
+
+/** Memoizada: en una lista solo se vuelve a dibujar si cambian sus props. */
+export const RegistroCard = memo(RegistroCardBase);
 // --- Estilos ---
 const styles = StyleSheet.create({
   card: {

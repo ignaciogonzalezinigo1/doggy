@@ -7,10 +7,11 @@
  * umbral y la háptica). La alternativa tocable es el botón "Eliminar" del
  * formulario de edición.
  */
+import { memo } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useApp } from '@/context/AppContext';
+import { useAcciones } from '@/context/AppContext';
 import { useConfirmarBorrado } from '@/hooks/useConfirmarBorrado';
 import { colors, radius, sizes, spacing, typography } from '@/theme';
 import type { Turno } from '@/types/models';
@@ -33,9 +34,9 @@ type Props = {
  * @param props.onEditar se llama al tocar el lápiz
  * @returns la card
  */
-export function TurnoCard({ turno, mascota, onEditar }: Props) {
+function TurnoCardBase({ turno, mascota, onEditar }: Props) {
   const categoria = categoriaTurno(turno.categoria);
-  const { borrarTurno } = useApp();
+  const { borrarTurno } = useAcciones();
   const { pedirBorrado } = useConfirmarBorrado();
 
   // --- Handlers ---
@@ -84,6 +85,9 @@ export function TurnoCard({ turno, mascota, onEditar }: Props) {
   );
 }
 
+
+/** Memoizada: en una lista solo se vuelve a dibujar si cambian sus props. */
+export const TurnoCard = memo(TurnoCardBase);
 // --- Estilos ---
 const styles = StyleSheet.create({
   card: {

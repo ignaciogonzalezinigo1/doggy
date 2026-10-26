@@ -10,7 +10,8 @@
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { fuenteFoto } from '@/data/fotos';
 import { useFototeca } from '@/hooks/useFototeca';
@@ -61,7 +62,7 @@ export function FotoEtiqueta({ foto, onChange }: Props) {
             accessibilityLabel="Ver la foto de la etiqueta en grande"
             style={({ pressed }) => pressed && styles.pressed}
           >
-            <Image source={fuente} style={styles.previa} />
+            <Image source={fuente} style={styles.previa} contentFit="cover" />
             <View style={styles.zoom}>
               <MaterialIcons name="zoom-in" size={sizes.iconSm} color={colors.white} />
             </View>

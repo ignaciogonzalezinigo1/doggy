@@ -4,8 +4,10 @@
  * su tutor) y chips (raza y etiquetas).
  * Se usa en el carrusel debajo del mapa y en el modo lista.
  */
+import { memo } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Image, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { fuenteFoto } from '@/data/fotos';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
@@ -31,7 +33,7 @@ const MAX_CHIPS = 2;
  * @param props ver `Props`
  * @returns la card tocable
  */
-export function ReporteCard({ reporte, onPress, seleccionado = false, style }: Props) {
+function ReporteCardBase({ reporte, onPress, seleccionado = false, style }: Props) {
   const perdido = reporte.estado === 'perdido';
   const fuente = fuenteFoto(reporte.foto);
   const chips = [reporte.raza, ...reporte.etiquetas].slice(0, MAX_CHIPS);
@@ -49,8 +51,9 @@ export function ReporteCard({ reporte, onPress, seleccionado = false, style }: P
       ]}
     >
       <View style={styles.foto}>
+        {/* expo-image: caché y decodificado al tamaño de la miniatura. */}
         {fuente ? (
-          <Image source={fuente} style={styles.imagen} />
+          <Image source={fuente} style={styles.imagen} contentFit="cover" transition={150} />
         ) : (
           <View style={[styles.imagen, styles.sinFoto]}>
             <MaterialIcons name="pets" size={sizes.iconLg} color={colors.tealLight} />
@@ -90,6 +93,9 @@ export function ReporteCard({ reporte, onPress, seleccionado = false, style }: P
   );
 }
 
+
+/** Memoizada: en una lista solo se vuelve a dibujar si cambian sus props. */
+export const ReporteCard = memo(ReporteCardBase);
 // --- Estilos ---
 const styles = StyleSheet.create({
   card: {

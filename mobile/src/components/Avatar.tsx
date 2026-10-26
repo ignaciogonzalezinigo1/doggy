@@ -1,13 +1,18 @@
 /**
  * Avatar circular para mascotas y personas.
  *
+ * La foto va con `expo-image`: la guarda en caché (memoria y disco, así una
+ * foto del servidor no se vuelve a bajar) y la decodifica al tamaño en que se
+ * muestra, no a los 800 px del archivo.
+ *
  * Muestra la foto si existe y carga bien. Si no hay foto o falla la carga,
  * dibuja un círculo con la inicial del nombre y una huellita, con los colores
  * de la marca, así ninguna card queda con un hueco vacío.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { fuenteFoto } from '@/data/fotos';
 import { colors, radius, sizes, typography } from '@/theme';
@@ -63,6 +68,8 @@ export function Avatar({
     <Image
       source={fuente}
       style={[styles.base, dimension]}
+      contentFit="cover"
+      transition={150}
       onError={() => setFalloCarga(true)}
       accessibilityLabel={`Foto de ${nombre}`}
     />

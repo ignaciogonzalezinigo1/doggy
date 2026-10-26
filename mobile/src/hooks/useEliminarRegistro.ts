@@ -5,7 +5,7 @@
  */
 import { useCallback } from 'react';
 
-import { useApp } from '@/context/AppContext';
+import { useAcciones } from '@/context/AppContext';
 import type { RegistroSanitario } from '@/types/models';
 import { formatearFecha } from '@/utils/fechas';
 import { useConfirmarBorrado } from './useConfirmarBorrado';
@@ -16,7 +16,7 @@ import { useConfirmarBorrado } from './useConfirmarBorrado';
  * @returns el `onEliminar` para `DeslizarParaBorrar`
  */
 export function useEliminarRegistro(registro: RegistroSanitario): (cerrar: () => void) => void {
-  const { borrarRegistro } = useApp();
+  const { borrarRegistro } = useAcciones();
   const { pedirBorrado } = useConfirmarBorrado();
 
   return useCallback(
