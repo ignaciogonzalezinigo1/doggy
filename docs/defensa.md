@@ -114,15 +114,28 @@ Porque es el contacto que ve quien encuentra a la mascota cuando está perdida. 
 
 **¿Cuándo aparece WhatsApp y por qué?**
 Solo para celulares (`esCelular`, con el tipo de número de libphonenumber-js) y solo cuando la app ya puede ver el teléfono: quien escanea el QR lo ve si la mascota está perdida (el servidor no lo manda en otro caso), y el tutor ve el de quien la encontró en "¡Encontraron a …!" (el servidor solo se lo manda a los asignados). WhatsApp no abre ninguna puerta nueva: usa el mismo teléfono que ya era visible. El link se arma con una sola función, `enlaceWhatsApp` (`wa.me`), con el mensaje y la ubicación en Google Maps.
-→ `doggy/mobile/src/utils/telefonos.ts`, `doggy/mobile/src/components/BotonWhatsApp.tsx`
+→ `doggy/mobile/src/utils/enlaces.ts`, `doggy/mobile/src/components/BotonWhatsApp.tsx`
 
 **¿Por qué los teléfonos se guardan en E.164?**
-Para que cada número tenga una sola forma (`+5492994554060`) aunque se tipee como "2994554060", "0299 15 455-4060" o "+54 9 299 455-4060", para que los links `tel:` y de WhatsApp anden desde cualquier país y para validar que sea un número real. Lo hace libphonenumber-js (región AR) en el servidor y en la app; en pantalla se muestra legible: "+54 9 299 455-4060".
+Para que cada número tenga una sola forma (`+5492994554060`) aunque se tipee como "2994554060", "0299 15 455-4060" o "+54 9 299 455-4060", para que los links `tel:` y de WhatsApp anden desde cualquier país y para validar que sea un número real. Lo hace libphonenumber-js (región AR). En pantalla se muestra siempre con la misma función, `formatearTelefono`: "+54 9 299 455-4060", "+54 9 11 4589-2310" o, un fijo, "+54 11 4777-3020".
 
 **¿Por qué todo número argentino se guarda como celular?**
-Porque libphonenumber, si no se escribe el 9 o el 15, toma el número como fijo, y casi todos cargan su celular así ("2994554060"): quedaba como fijo y sin WhatsApp. Ahora es celular por defecto y, para un fijo, se marca "Es un teléfono fijo" (el servidor lo recibe como `telefonoFijo` y guarda el número sin el 9). No hace falta otra columna: el E.164 ya dice si es fijo o celular.
-→ `doggy-backend/src/lib/telefonos.ts` (`aE164`), `doggy/mobile/src/components/InputTelefono.tsx`
-→ `doggy-backend/src/lib/telefonos.ts`, `doggy/mobile/src/utils/telefonos.ts`
+Porque libphonenumber, si no se escribe el 9 o el 15, toma el número como fijo, y casi todos cargan su celular así ("2994554060"): quedaba como fijo y sin WhatsApp. Ahora es celular por defecto y, para un fijo, se marca "Es un teléfono fijo" (el servidor lo recibe como `telefonoFijo` y guarda el número sin el 9). No hace falta otra columna: el E.164 ya dice si es fijo o celular, y al editar el perfil la casilla aparece marcada si el guardado es fijo.
+→ `doggy-backend/src/lib/telefonos.ts` (`interpretarTelefono`), `doggy/mobile/src/components/InputTelefono.tsx`
+
+**¿Por qué solo teléfonos de Argentina?**
+Porque la app es para familias y vecinos de acá, y así el número es siempre "característica y número" y se puede mostrar el +54 fijo en el campo. Un número de otro país da 400 "Solo se aceptan teléfonos de Argentina." en el servidor y el mismo mensaje en el formulario.
+
+**Son dos repos: ¿cómo comparten la regla de teléfonos?**
+Con un solo archivo, `telefonos.ts`, idéntico en `doggy-backend/src/lib/` y en `doggy/mobile/src/utils/` (no importa nada de ninguno de los dos, solo libphonenumber-js). `npm test` del backend compara las dos copias y falla si difieren. Validar, pasar a E.164, sacar el +54 y formatear para mostrar salen de ahí; los links (`tel:`, WhatsApp) están aparte, en `enlaces.ts` de la app, y usan el E.164 tal cual.
+→ `doggy-backend/scripts/probar.sh` ("telefonos.ts es idéntico en la app y en la API")
+
+**¿Qué pasa si alguien escribe o pega el número con +54?**
+El campo ya muestra el +54 fijo. Si el usuario pega o escribe +54, 54, 0054 o 549 adelante, el input lo saca al pegar y al salir del campo (`quitarCodigoPais`), deja "299 455-4060" y avisa unos segundos "Ya agregamos el +54, escribí solo tu número". No es un error; si lo que queda no es válido, aparece el error normal. El servidor acepta igual esos formatos, por si llegan sin pasar por el input.
+→ `doggy/mobile/src/components/InputTelefono.tsx`
+
+**¿Por qué "351 123-4567" no es válido y "351 423-4567" sí?**
+Porque en la Argentina ningún número local empieza con 1 después de la característica: la metadata completa de libphonenumber (`/max`) lo rechaza en el servidor y en la app. Con cualquier número real de Córdoba, Bariloche (2944) o una característica de 4 dígitos (3543) anda igual que con 11 o 299.
 
 **¿Por qué fecha de nacimiento y no edad?**
 Porque una edad guardada queda vieja al año. Se guarda la fecha (sin hora) y la edad se calcula al mostrarla, con una sola función (`textoEdad`): "3 años", "5 meses" o "Menos de 1 mes". Al QR ajeno el servidor le manda solo la edad en meses, no la fecha.
@@ -134,6 +147,21 @@ Porque una edad guardada queda vieja al año. Se guarda la fecha (sin hora) y la
 **¿Se puede avisar que encontraste una mascota que no está perdida?**
 Sí, a propósito: la familia puede no saber todavía que se escapó, y como no está perdida no se muestra su teléfono, así que el aviso es la única forma de contactarla. Quien la encontró queda visible para la familia (nombre y teléfono), y la app se lo dice antes de publicar. Hay un solo aviso activo por mascota: el segundo da 409 "Ya le avisaron a su familia.".
 → `doggy-backend/src/rutas/reportes.ts` (POST), `doggy/mobile/app/reportar.tsx`
+
+**Si alguien publica un "encontrado", ¿se cierra el "perdido"?**
+No. El perdido sigue activo hasta que la familia la tiene de vuelta, porque encontrarla no es recuperarla: si se cerrara, desaparecería del mapa y otros vecinos dejarían de buscarla aunque todavía no volvió a casa. Mientras tanto el perdido muestra "¡La encontraron! Esperando que su familia la recupere" en su pin (teal con un tilde), en la lista y en su detalle, con el lugar y la hora del hallazgo.
+→ `doggy/mobile/src/utils/selectores.ts` (`hallazgoDe`), `doggy/mobile/src/components/perdidos/DetalleReporte.tsx`
+
+**¿Por qué un solo pin por mascota?**
+Para que el mapa no muestre la misma mascota dos veces (perdida en un lugar y encontrada en otro). Si un encontrado tiene el `mascotaId` de una mascota con un perdido en la lista, no se dibuja aparte: su ubicación está en el detalle del perdido. Los encontrados sin mascota, o de mascotas no perdidas, se dibujan igual que antes.
+→ `doggy/mobile/src/utils/selectores.ts` (`unoPorMascota`), `doggy/mobile/app/(tabs)/perdidos.tsx`
+
+**¿Quién decide si quedó "Devuelta a su familia" o "Apareció"?**
+El servidor, al cerrar (`PATCH { cerrado: true }`): un perdido con un encontrado activo, o un encontrado cerrado por alguien asignado a la mascota ("Ya volvió a casa"), cierra los dos reportes en una transacción con `resultado: "devuelta"` y la misma fecha; un perdido sin encontrado ("Ya apareció") queda `"aparecio"`. Así no depende de que la app mande dos pedidos en orden, y el resultado no se puede inventar desde el cliente. Quien no es el autor ni está asignado a la mascota no puede cerrar (403).
+→ `doggy-backend/src/rutas/reportes.ts` (`cierreDe`)
+
+**¿Cómo se agregó el resultado sin perder datos?**
+`resultado` es una columna opcional (`String?`) de `ReportePerdida`: `prisma db push` la suma vacía, sin `--accept-data-loss`, y los reportes que ya estaban quedan igual (los cerrados de antes, sin resultado). Se hizo una copia de `dev.db` antes.
 
 **¿Quien escanea el QR puede cambiar los datos de la mascota?**
 No. La app los muestra de solo lectura y no los manda, y el servidor, si el reporte trae `mascotaId`, toma el nombre y la raza de la mascota e ignora los del body. Editar la mascota en sí nunca fue posible: el PATCH de una mascota ajena da 403.
@@ -276,8 +304,10 @@ SQLite no guarda listas. La ruta las convierte a `etiquetas: string[]` antes de 
 Antes: `npm run db:reset` en `doggy-backend` (deja la demo limpia y las fechas al día). Contraseña de todos: `doggy1234`.
 
 1. **Sofía** (`sofia.romero@mail.com`). Mis Mascotas: arriba aparece "¡Encontraron a Milo!", con dónde y cuándo, y "Escribirle por WhatsApp" a Valentina. Abrir Luna → Carnet: próximo refuerzo de la antirrábica, la séxtuple con el refuerzo vencido, desparasitaciones y "Análisis de sangre" en Otros. Tocar "Ver etiqueta" si hay una cargada y hacer zoom. Roco tiene una sola vacuna: deslizarla para mostrar "Eliminar" (cancelar). Agenda: turnos pasados y próximos.
-2. **Sofía**, Perdidos: mapa con 9 reportes en Palermo, Belgrano, Villa Urquiza, Caballito, Almagro y Núñez; filtrar perdidos y encontrados.
-3. **Julián** (`julian.fernandez@mail.com`). Perfil de Pipa: está reportada como perdida; "Descargar QR" o "Compartir QR" para tener la imagen.
-4. **Lucía** (`lucia.gomez@mail.com`). "Encontré una mascota" → escanear el QR de Pipa (con la cámara o desde la imagen): tarjeta de solo lectura con "Su familia: Julián", su celular y "Avisar por WhatsApp" (con la ubicación en Google Maps). Escanear el QR de Luna: solo "Su familia: Sofía", sin teléfono, porque no está perdida.
-5. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada.
-6. **Vet. San Roque** (`contacto@vetsanroque.com`): teléfono fijo, así que en sus avisos no aparece WhatsApp.
+2. **Sofía**, Perdidos: mapa con los reportes en Palermo, Belgrano, Villa Urquiza, Caballito, Almagro, Núñez y Saavedra; filtrar perdidos y encontrados. Rocky tiene un solo pin, teal con un tilde: "¡La encontraron!".
+3. **Marcos** (`marcos.diaz@mail.com`). Mis Mascotas: "¡Encontraron a Rocky!" con el contacto de Martín. En Perdidos, el detalle de Rocky muestra dónde y cuándo lo encontraron. "Ya volvió a casa": se cierran el perdido y el encontrado ("Devuelta a su familia") y Rocky sale del mapa.
+4. **Julián** (`julian.fernandez@mail.com`). Perfil de Pipa: está reportada como perdida; "Descargar QR" o "Compartir QR" para tener la imagen.
+5. **Lucía** (`lucia.gomez@mail.com`). "Encontré una mascota" → escanear el QR de Pipa (con la cámara o desde la imagen): tarjeta de solo lectura con "Su familia: Julián", su celular y "Avisar por WhatsApp" (con la ubicación en Google Maps). Escanear el QR de Luna: solo "Su familia: Sofía", sin teléfono, porque no está perdida.
+6. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada.
+7. **Vet. San Roque** (`contacto@vetsanroque.com`): teléfono fijo, así que en sus avisos no aparece WhatsApp.
+8. **Registro** (o Perfil → "Editar datos personales"): el teléfono tiene el +54 fijo. Pegar "+54 9 299 455 4060": queda "299 455-4060" y aparece "Ya agregamos el +54, escribí solo tu número". Probar "+1 202 555 0143": "Solo se aceptan teléfonos de Argentina."
