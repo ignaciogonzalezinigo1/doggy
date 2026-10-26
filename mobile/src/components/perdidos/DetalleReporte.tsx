@@ -6,8 +6,12 @@
  * etiquetas, cuándo y dónde (con el radio de búsqueda si lo marcó su tutor),
  * descripción o señas particulares e información adicional (ropa, arnés,
  * cómo reacciona). "Ver en el mapa" cierra la hoja y centra el mapa en el reporte.
+ * Si alguien ya encontró a la mascota perdida (un encontrado activo de la
+ * misma mascota), muestra "¡La encontraron! Esperando que su familia la
+ * recupere" con el lugar y la hora del hallazgo: en el mapa no tiene pin propio.
  * Si la mascota perdida es del usuario (o él publicó el reporte), suma
- * "Editar reporte" y "Ya apareció", que cierra el reporte y lo saca del mapa.
+ * "Editar reporte" y "Ya apareció" ("Ya volvió a casa" si la encontraron), que
+ * cierra el reporte y lo saca del mapa.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState, type ComponentProps } from 'react';
@@ -16,6 +20,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fuenteFoto } from '@/data/fotos';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
+import { TEXTO_HALLAZGO } from '@/utils/etiquetas';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
 import { textoRadio } from '@/utils/mapa';
 import { Avatar } from '../Avatar';
@@ -30,6 +35,8 @@ type Props = {
   visible: boolean;
   /** Reporte a mostrar. Se mantiene mientras la hoja se cierra, para que no quede vacía. */
   reporte: ReportePerdida | null;
+  /** Encontrado activo de la mascota de un perdido (ver `hallazgoDe`), si alguien ya la encontró. */
+  hallazgo?: ReportePerdida;
   /** true si el reporte lo publicó el usuario logueado. */
   esPropio: boolean;
   onClose: () => void;
@@ -53,6 +60,7 @@ type Props = {
 export function DetalleReporte({
   visible,
   reporte,
+  hallazgo,
   esPropio,
   onClose,
   onVerEnMapa,
@@ -74,6 +82,23 @@ export function DetalleReporte({
         <View style={styles.propio}>
           <MaterialIcons name="person" size={sizes.iconSm} color={colors.primary} />
           <Text style={styles.propioTexto}>Publicaste este reporte</Text>
+        </View>
+      )}
+
+      {hallazgo && (
+        <View style={styles.hallazgo} accessibilityLiveRegion="polite">
+          <View style={styles.hallazgoTitulo}>
+            <MaterialIcons name="where-to-vote" size={sizes.iconMd} color={colors.primary} />
+            <Text style={styles.hallazgoTexto} accessibilityRole="header">
+              {TEXTO_HALLAZGO}
+            </Text>
+          </View>
+          <Dato icono="location-on" etiqueta="Dónde la encontraron" valor={hallazgo.zona} />
+          <Dato
+            icono="schedule"
+            etiqueta="Cuándo"
+            valor={`${tiempoTranscurrido(hallazgo.fecha)} · ${formatearFecha(hallazgo.fecha)} ${formatearHora(hallazgo.fecha)}`}
+          />
         </View>
       )}
 
@@ -131,8 +156,8 @@ export function DetalleReporte({
           )}
           {onYaAparecio && (
             <PrimaryButton
-              title="Ya apareció"
-              icon="celebration"
+              title={hallazgo ? 'Ya volvió a casa' : 'Ya apareció'}
+              icon={hallazgo ? 'home' : 'celebration'}
               iconLeft
               onPress={() => onYaAparecio(reporte)}
               loading={cerrando}
@@ -281,6 +306,24 @@ const styles = StyleSheet.create({
   estadoTexto: {
     ...typography.labelSm,
     color: colors.white,
+  },
+  hallazgo: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: sizes.borderWidth,
+    borderColor: colors.tealLight,
+    backgroundColor: colors.tealLight10,
+  },
+  hallazgoTitulo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  hallazgoTexto: {
+    ...typography.labelMd,
+    color: colors.primary,
+    flex: 1,
   },
   propio: {
     flexDirection: 'row',

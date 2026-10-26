@@ -89,6 +89,14 @@ export type Turno = {
 
 export type EstadoReporte = 'perdido' | 'encontrado';
 
+/**
+ * Cómo terminó un reporte cerrado.
+ * - devuelta: alguien la encontró y volvió con su familia (se cierran el
+ *   perdido y el encontrado de la mascota).
+ * - aparecio: se cerró un perdido sin ningún encontrado ("Ya apareció").
+ */
+export type ResultadoReporte = 'devuelta' | 'aparecio';
+
 /** Reporte de un perro perdido o encontrado en la vía pública. */
 export type ReportePerdida = {
   id: number;
@@ -121,6 +129,10 @@ export type ReportePerdida = {
    * "encontrado" de una mascota del usuario que publicó otra persona.
    */
   contacto?: { nombre: string; telefono: string };
+  /** Cuándo se cerró. Solo viene en un reporte cerrado (la respuesta del PATCH que lo cierra). */
+  cerradoEn?: string;
+  /** Cómo terminó. Solo viene en un reporte cerrado; lo decide el servidor. */
+  resultado?: ResultadoReporte;
 };
 
 export type TipoCuidador = 'familia' | 'clinica' | 'paseador';

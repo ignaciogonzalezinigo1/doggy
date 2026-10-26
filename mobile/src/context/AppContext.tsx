@@ -118,8 +118,11 @@ type AppAcciones = {
   buscarMascotaPorCodigo: (codigo: string) => Promise<MascotaPublica | null>;
   crearReporte: (datos: NuevoReporte) => Promise<ReportePerdida>;
   editarReporte: (id: number, cambios: CambiosReporte) => Promise<ReportePerdida>;
-  /** Cierra un reporte porque la mascota apareció: sale del mapa. */
-  cerrarReporte: (id: number) => Promise<void>;
+  /**
+   * Cierra un reporte porque la mascota apareció o volvió a casa: sale del
+   * mapa. Devuelve el reporte cerrado, con el `resultado` que decidió el servidor.
+   */
+  cerrarReporte: (id: number) => Promise<ReportePerdida>;
   agregarRegistro: (datos: NuevoRegistro) => Promise<RegistroSanitario>;
   editarRegistro: (id: number, datos: NuevoRegistro) => Promise<RegistroSanitario>;
   borrarRegistro: (id: number) => Promise<void>;
@@ -390,10 +393,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return actualizado;
   }, []);
 
-  /** Cierra un reporte (la mascota ya apareció) y lo saca de la lista. */
+  /**
+   * Cierra un reporte y lo saca de la lista. Si volvió con su familia
+   * ("devuelta"), el servidor cerró también el otro reporte activo de la
+   * mascota (el perdido o el encontrado): sale de la lista también.
+   */
   const cerrarReporte = useCallback(async (id: number) => {
-    await reportesService.cerrarReporte(id);
-    setReportes((prev) => prev.filter((r) => r.id !== id));
+    const cerrado = await reportesService.cerrarReporte(id);
+    const mascotaId = cerrado.resultado === 'devuelta' ? cerrado.mascotaId : null;
+    setReportes((prev) => prev.filter((r) => r.id !== id && (mascotaId === null || r.mascotaId !== mascotaId)));
+    return cerrado;
   }, []);
 
   /** Agrega un registro al carnet sanitario. */

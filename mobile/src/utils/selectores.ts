@@ -163,6 +163,53 @@ export function reporteEncontrado(
 }
 
 /**
+ * Hallazgo de un reporte de perdido: el "encontrado" activo de la misma
+ * mascota. Mientras la familia no la recupera, los dos siguen activos y el
+ * perdido muestra "¡La encontraron!" con el lugar y la hora del hallazgo.
+ * @param reportes todos los reportes
+ * @param reporte reporte de perdido
+ * @returns el encontrado, o undefined si no es un perdido de una mascota o nadie la encontró
+ */
+export function hallazgoDe(
+  reportes: ReportePerdida[],
+  reporte: ReportePerdida,
+): ReportePerdida | undefined {
+  if (reporte.estado !== 'perdido' || reporte.mascotaId === null) return undefined;
+  return reporteEncontrado(reportes, reporte.mascotaId);
+}
+
+/**
+ * Hallazgos de todos los perdidos, por id del perdido (para el mapa y las cards).
+ * @param reportes todos los reportes
+ * @returns id del perdido → su encontrado
+ */
+export function hallazgosPorPerdido(reportes: ReportePerdida[]): Map<number, ReportePerdida> {
+  const hallazgos = new Map<number, ReportePerdida>();
+  for (const reporte of reportes) {
+    const hallazgo = hallazgoDe(reportes, reporte);
+    if (hallazgo) hallazgos.set(reporte.id, hallazgo);
+  }
+  return hallazgos;
+}
+
+/**
+ * Un solo pin por mascota: saca de la lista los "encontrado" de una mascota
+ * cuyo perdido también está en la lista, porque su ubicación se ve en el
+ * detalle de ese perdido. Los encontrados sin mascota, o de una mascota sin
+ * perdido en la lista (por ejemplo, con el filtro "Encontrados"), quedan.
+ * @param reportes reportes ya filtrados
+ * @returns los mismos, sin los encontrados que ya representa su perdido
+ */
+export function unoPorMascota(reportes: ReportePerdida[]): ReportePerdida[] {
+  const conPerdido = new Set(
+    reportes.filter((r) => r.estado === 'perdido' && r.mascotaId !== null).map((r) => r.mascotaId),
+  );
+  return reportes.filter(
+    (r) => r.estado !== 'encontrado' || r.mascotaId === null || !conPerdido.has(r.mascotaId),
+  );
+}
+
+/**
  * Indica si el usuario puede editar o cerrar un reporte de perdido: lo
  * publicó él o la mascota está en su cuenta (dueño o invitado), así quien la
  * encuentre de la familia puede sacarla del mapa aunque no la haya reportado.

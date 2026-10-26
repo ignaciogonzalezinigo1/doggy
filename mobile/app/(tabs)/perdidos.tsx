@@ -1,7 +1,10 @@
 /**
  * Pantalla Perdidos: mapa comunitario de mascotas perdidas y encontradas.
  *
- * Modo Mapa: un marker por reporte (mostaza perdido, teal encontrado), botón
+ * Modo Mapa: un marker por reporte (mostaza perdido, teal encontrado) y uno
+ * solo por mascota: el "encontrado" de una mascota con un perdido activo no se
+ * dibuja aparte; el perdido lleva el tilde y "¡La encontraron!" y el hallazgo
+ * se ve en su detalle. Botón
  * "mi ubicación" que centra el mapa con el GPS y un carrusel de cards; tocar
  * un marker o una card centra el mapa en ese reporte y abre la hoja de
  * detalle con todo lo que se cargó al reportarlo. Modo Lista: las mismas
@@ -46,7 +49,14 @@ import { useRefresco } from '@/hooks/useRefresco';
 import { Coordenadas, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
-import { filtrarReportes, FiltroEstado, puedeGestionarReporte } from '@/utils/selectores';
+import {
+  filtrarReportes,
+  FiltroEstado,
+  hallazgosPorPerdido,
+  puedeGestionarReporte,
+  reporteActivo,
+  unoPorMascota,
+} from '@/utils/selectores';
 import { LIMITES } from '@/utils/validaciones';
 
 type Modo = 'mapa' | 'lista';
@@ -100,10 +110,13 @@ export default function PerdidosScreen() {
   const { cerrando, pedirCierre } = useCerrarReporte(cerrarDetalle);
 
   // --- Datos derivados ---
+  // Un solo pin y una sola card por mascota: el encontrado de un perdido de la lista se ve en su detalle.
   const visibles = useMemo(
-    () => filtrarReportes(reportes, busqueda, filtro),
+    () => unoPorMascota(filtrarReportes(reportes, busqueda, filtro)),
     [reportes, busqueda, filtro],
   );
+  /** Encontrado activo de cada perdido, por id del perdido (con todos los reportes, no solo los filtrados). */
+  const hallazgos = useMemo(() => hallazgosPorPerdido(reportes), [reportes]);
   const anchoCard = width - spacing.containerMargin * 2 - ASOMA;
   /** Mismo objeto mientras no cambie el ancho, así `ReporteCard` (memoizada) no se redibuja. */
   const estiloCard = useMemo(() => ({ width: anchoCard }), [anchoCard]);
@@ -116,7 +129,13 @@ export default function PerdidosScreen() {
   const [reporteRecibido, setReporteRecibido] = useState<string | undefined>(undefined);
   const [destino, setDestino] = useState<Coordenadas | null>(null);
   if (reporteId && reporteId !== reporteRecibido) {
-    const reporte = reportes.find((r) => String(r.id) === reporteId);
+    const recibido = reportes.find((r) => String(r.id) === reporteId);
+    // Un encontrado de una mascota perdida no tiene pin propio: se marca su perdido.
+    const perdido =
+      recibido?.estado === 'encontrado' && recibido.mascotaId !== null
+        ? reporteActivo(reportes, recibido.mascotaId)
+        : undefined;
+    const reporte = perdido ?? recibido;
     if (reporte) {
       setReporteRecibido(reporteId);
       setModo('mapa');
@@ -299,6 +318,7 @@ export default function PerdidosScreen() {
             <MapaReportes
               ref={mapaRef}
               reportes={visibles}
+              hallazgos={hallazgos}
               onSeleccionar={handleMarker}
               seleccionadoId={seleccionadoId}
               mostrarUsuario={gps.permiso === 'concedido'}
@@ -341,6 +361,7 @@ export default function PerdidosScreen() {
                 renderItem={({ item }) => (
                   <ReporteCard
                     reporte={item}
+                    encontrada={hallazgos.has(item.id)}
                     onPress={handleCard}
                     seleccionado={item.id === seleccionadoId}
                     style={estiloCard}
@@ -366,7 +387,9 @@ export default function PerdidosScreen() {
           <FlatList
             data={visibles}
             keyExtractor={(reporte) => String(reporte.id)}
-            renderItem={({ item }) => <ReporteCard reporte={item} onPress={abrirDetalle} />}
+            renderItem={({ item }) => (
+              <ReporteCard reporte={item} encontrada={hallazgos.has(item.id)} onPress={abrirDetalle} />
+            )}
             refreshControl={refresco}
             ListHeaderComponent={
               <SegmentedControl opciones={MODOS} valor={modo} onChange={setModo} variant="pill" />
@@ -399,6 +422,7 @@ export default function PerdidosScreen() {
       <DetalleReporte
         visible={detalleVisible}
         reporte={detalle}
+        hallazgo={detalle ? hallazgos.get(detalle.id) : undefined}
         esPropio={!!detalle && detalle.autorId === usuario?.id}
         onClose={cerrarDetalle}
         onVerEnMapa={abrirEnMapa}

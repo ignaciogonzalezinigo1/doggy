@@ -4,7 +4,7 @@
  */
 import { mesesCumplidos } from './fechas';
 import { colors } from '@/theme';
-import type { CategoriaTurno, RolMascota, TipoRegistro } from '@/types/models';
+import type { CategoriaTurno, ResultadoReporte, RolMascota, TipoRegistro } from '@/types/models';
 
 /**
  * Texto de la edad de una mascota, la única función que la arma para todas
@@ -145,4 +145,22 @@ export const CATEGORIAS_TURNO: {
  */
 export function categoriaTurno(categoria: CategoriaTurno): (typeof CATEGORIAS_TURNO)[number] {
   return CATEGORIAS_TURNO.find((c) => c.valor === categoria) ?? CATEGORIAS_TURNO[0];
+}
+
+/** Marca de un perdido que alguien encontró y su familia todavía no recuperó. */
+export const TEXTO_HALLAZGO = '¡La encontraron! Esperando que su familia la recupere';
+
+/** Texto de cada resultado de un reporte cerrado. */
+const RESULTADOS_REPORTE: Record<ResultadoReporte, string> = {
+  devuelta: 'Devuelta a su familia',
+  aparecio: 'Apareció',
+};
+
+/**
+ * Texto del resultado de un reporte cerrado.
+ * @param resultado lo que guardó el servidor al cerrarlo
+ * @returns "Devuelta a su familia" o "Apareció"
+ */
+export function textoResultado(resultado: ResultadoReporte): string {
+  return RESULTADOS_REPORTE[resultado];
 }

@@ -14,6 +14,8 @@ export type MapaReportesHandle = {
 
 export type MapaReportesProps = {
   reportes: ReportePerdida[];
+  /** Hallazgos de los perdidos, por id del perdido (`hallazgosPorPerdido`): su pin lleva un tilde. */
+  hallazgos: ReadonlyMap<number, ReportePerdida>;
   onSeleccionar: (reporte: ReportePerdida) => void;
   seleccionadoId?: number | null;
   /** Muestra el punto azul del usuario (solo si hay permiso). */

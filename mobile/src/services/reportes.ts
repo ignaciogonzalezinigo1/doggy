@@ -44,11 +44,14 @@ export async function actualizarReporte(
 }
 
 /**
- * Cierra un reporte porque la mascota ya apareció: deja de estar activo y sale
- * del mapa. No se borra: el servidor lo guarda como historial.
- * Endpoint: PATCH /api/reportes/:id  { cerrado: true } -> 200 ReportePerdida
+ * Cierra un reporte porque la mascota ya apareció o volvió a casa: deja de
+ * estar activo y sale del mapa. No se borra: el servidor lo guarda como
+ * historial con su `resultado`: "devuelta" si había un encontrado (y entonces
+ * cierra también el otro reporte activo de la mascota) o "aparecio".
+ * Endpoint: PATCH /api/reportes/:id  { cerrado: true } -> 200 ReportePerdida (con cerradoEn y resultado)
  * @param id id del reporte
+ * @returns el reporte cerrado
  */
-export async function cerrarReporte(id: number): Promise<void> {
-  await pedirJson<ReportePerdida>(`/api/reportes/${id}`, conCuerpo('PATCH', { cerrado: true }));
+export async function cerrarReporte(id: number): Promise<ReportePerdida> {
+  return pedirJson<ReportePerdida>(`/api/reportes/${id}`, conCuerpo('PATCH', { cerrado: true }));
 }

@@ -1,7 +1,9 @@
 /**
  * Card de un reporte de mascota perdida o encontrada: foto con el estado
  * encima, nombre, hace cuánto, zona (con el radio de búsqueda si lo reportó
- * su tutor) y chips (raza y etiquetas).
+ * su tutor) y chips (raza y etiquetas). Un perdido que alguien ya encontró
+ * muestra, en lugar de los chips, "¡La encontraron! Esperando que su familia
+ * la recupere".
  * Se usa en el carrusel debajo del mapa y en el modo lista.
  */
 import { memo } from 'react';
@@ -12,11 +14,14 @@ import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-n
 import { fuenteFoto } from '@/data/fotos';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
+import { TEXTO_HALLAZGO } from '@/utils/etiquetas';
 import { tiempoTranscurrido } from '@/utils/fechas';
 import { textoRadio } from '@/utils/mapa';
 
 type Props = {
   reporte: ReportePerdida;
+  /** true si es un perdido con un encontrado activo (ver `hallazgosPorPerdido`). */
+  encontrada?: boolean;
   onPress: (reporte: ReportePerdida) => void;
   /** Resalta la card (la que está centrada en el mapa). */
   seleccionado?: boolean;
@@ -33,7 +38,7 @@ const MAX_CHIPS = 2;
  * @param props ver `Props`
  * @returns la card tocable
  */
-function ReporteCardBase({ reporte, onPress, seleccionado = false, style }: Props) {
+function ReporteCardBase({ reporte, encontrada = false, onPress, seleccionado = false, style }: Props) {
   const perdido = reporte.estado === 'perdido';
   const fuente = fuenteFoto(reporte.foto);
   const chips = [reporte.raza, ...reporte.etiquetas].slice(0, MAX_CHIPS);
@@ -42,7 +47,7 @@ function ReporteCardBase({ reporte, onPress, seleccionado = false, style }: Prop
     <Pressable
       onPress={() => onPress(reporte)}
       accessibilityRole="button"
-      accessibilityLabel={`${perdido ? 'Perdido' : 'Encontrado'}: ${reporte.nombre}, ${reporte.zona}`}
+      accessibilityLabel={`${perdido ? 'Perdido' : 'Encontrado'}: ${reporte.nombre}, ${reporte.zona}${encontrada ? `. ${TEXTO_HALLAZGO}` : ''}`}
       style={({ pressed }) => [
         styles.card,
         seleccionado && styles.seleccionado,
@@ -78,16 +83,26 @@ function ReporteCardBase({ reporte, onPress, seleccionado = false, style }: Prop
             {reporte.radioMetros ? ` · radio ${textoRadio(reporte.radioMetros)}` : ''}
           </Text>
         </View>
-        <View style={styles.chips}>
-          {chips.map((chip, indice) => (
-            // La raza (primer chip) no se achica; las etiquetas sí.
-            <View key={chip} style={[styles.chip, indice === 0 && styles.chipFijo]}>
-              <Text style={styles.chipTexto} numberOfLines={1}>
-                {chip}
-              </Text>
-            </View>
-          ))}
-        </View>
+        {/* La marca va en el lugar de los chips, así la card no crece. */}
+        {encontrada ? (
+          <View style={styles.hallazgo}>
+            <MaterialIcons name="where-to-vote" size={16} color={colors.primary} />
+            <Text style={styles.hallazgoTexto} numberOfLines={2}>
+              {TEXTO_HALLAZGO}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.chips}>
+            {chips.map((chip, indice) => (
+              // La raza (primer chip) no se achica; las etiquetas sí.
+              <View key={chip} style={[styles.chip, indice === 0 && styles.chipFijo]}>
+                <Text style={styles.chipTexto} numberOfLines={1}>
+                  {chip}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -200,5 +215,20 @@ const styles = StyleSheet.create({
   chipTexto: {
     ...typography.labelSm,
     color: colors.primaryContainer,
+  },
+  hallazgo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.tealLight10,
+  },
+  hallazgoTexto: {
+    ...typography.labelSm,
+    color: colors.primary,
+    flexShrink: 1,
   },
 });

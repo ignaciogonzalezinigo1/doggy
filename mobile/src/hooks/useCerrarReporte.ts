@@ -1,10 +1,12 @@
 /**
  * Hook para sacar una mascota de "perdidos" cuando aparece.
  *
- * Lo usan el detalle del reporte en Perdidos, el perfil de la mascota y la
- * edición del reporte, para que la respuesta sea igual en los tres lugares:
- * pide confirmación con el Alert nativo, cierra el reporte en el servidor
- * (PATCH /api/reportes/:id { cerrado: true }) y vibra al terminar.
+ * Lo usan el detalle del reporte en Perdidos, el perfil de la mascota, su
+ * menú y la edición del reporte, para que la respuesta sea igual en todos los
+ * lugares: pide confirmación con el Alert nativo, cierra el reporte en el
+ * servidor (PATCH /api/reportes/:id { cerrado: true }) y vibra al terminar.
+ * El servidor decide el resultado: si alguien la había encontrado, cierra
+ * también ese aviso y queda "Devuelta a su familia"; si no, "Apareció".
  *
  * Háptica: usa el motor de vibración del celular con `expo-haptics` para
  * confirmar que el reporte se cerró (o avisar que falló). No pide permisos.
@@ -15,6 +17,8 @@ import { Alert } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import type { ReportePerdida } from '@/types/models';
+import { textoResultado } from '@/utils/etiquetas';
+import { hallazgoDe } from '@/utils/selectores';
 
 type UseCerrarReporte = {
   /** true mientras se cierra el reporte. */
@@ -32,7 +36,7 @@ type UseCerrarReporte = {
  * @returns el estado de carga y la función para pedir el cierre
  */
 export function useCerrarReporte(onCerrado?: (reporte: ReportePerdida) => void): UseCerrarReporte {
-  const { cerrarReporte } = useApp();
+  const { reportes, cerrarReporte } = useApp();
   const [cerrando, setCerrando] = useState(false);
 
   /**
@@ -43,10 +47,11 @@ export function useCerrarReporte(onCerrado?: (reporte: ReportePerdida) => void):
     async (reporte: ReportePerdida) => {
       setCerrando(true);
       try {
-        await cerrarReporte(reporte.id);
+        const cerrado = await cerrarReporte(reporte.id);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onCerrado?.(reporte);
-        Alert.alert('¡Qué alegría!', `Sacamos a ${reporte.nombre} del mapa de perdidos.`);
+        const resultado = cerrado.resultado ? ` Quedó como "${textoResultado(cerrado.resultado)}".` : '';
+        Alert.alert('¡Qué alegría!', `Sacamos a ${reporte.nombre} del mapa de perdidos.${resultado}`);
       } catch (e) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('No se pudo cerrar el reporte', e instanceof Error ? e.message : 'Intentá de nuevo.');
@@ -59,20 +64,24 @@ export function useCerrarReporte(onCerrado?: (reporte: ReportePerdida) => void):
 
   /**
    * Pide confirmación con el Alert nativo y, si se confirma, cierra el reporte.
+   * Si alguien ya la había encontrado, avisa que se cierran los dos reportes.
    * @param reporte reporte de la mascota que apareció
    */
   const pedirCierre = useCallback(
     (reporte: ReportePerdida) => {
+      const encontrada = !!hallazgoDe(reportes, reporte);
       Alert.alert(
-        `¿${reporte.nombre} ya apareció?`,
-        'El reporte sale del mapa y deja de verse para los demás. No se puede volver a abrir.',
+        encontrada ? `¿Ya recuperaste a ${reporte.nombre}?` : `¿${reporte.nombre} ya apareció?`,
+        encontrada
+          ? 'Se cierran el reporte de pérdida y el aviso de quien la encontró. Los dos salen del mapa y no se pueden volver a abrir.'
+          : 'El reporte sale del mapa y deja de verse para los demás. No se puede volver a abrir.',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Ya apareció', onPress: () => cerrar(reporte) },
+          { text: encontrada ? 'Ya volvió a casa' : 'Ya apareció', onPress: () => cerrar(reporte) },
         ],
       );
     },
-    [cerrar],
+    [reportes, cerrar],
   );
 
   return { cerrando, pedirCierre };

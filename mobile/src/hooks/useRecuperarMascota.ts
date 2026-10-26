@@ -2,12 +2,12 @@
  * Hook para "Ya volvió a casa": la familia ya tiene de vuelta a una mascota que
  * alguien reportó como encontrada.
  *
- * Pide confirmación con el Alert nativo y cierra el reporte "encontrado" y,
- * si la mascota también estaba reportada como perdida, ese reporte. Así deja
- * de figurar en el mapa por los dos lados. Cada cierre es un
- * PATCH /api/reportes/:id { cerrado: true }: el servidor deja cerrar el
- * "encontrado" aunque lo haya publicado otra persona, porque el usuario está
- * asignado a la mascota.
+ * Pide confirmación con el Alert nativo y cierra el reporte "encontrado" con
+ * un PATCH /api/reportes/:id { cerrado: true }. El servidor lo cierra como
+ * "Devuelta a su familia" y, en la misma operación, cierra también el
+ * "perdido" activo de la mascota, si hay: así deja de figurar en el mapa por
+ * los dos lados. Lo deja cerrar aunque lo haya publicado otra persona,
+ * porque el usuario está asignado a la mascota.
  *
  * Háptica: vibra con `expo-haptics` al terminar (o al fallar). No pide permisos.
  */
@@ -17,7 +17,6 @@ import { Alert } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import type { ReportePerdida } from '@/types/models';
-import { reporteActivo } from '@/utils/selectores';
 
 type UseRecuperarMascota = {
   /** true mientras se cierran los reportes. */
@@ -34,21 +33,18 @@ type UseRecuperarMascota = {
  * @returns el estado de carga y la función para pedir la confirmación
  */
 export function useRecuperarMascota(): UseRecuperarMascota {
-  const { reportes, cerrarReporte } = useApp();
+  const { cerrarReporte } = useApp();
   const [recuperando, setRecuperando] = useState(false);
 
   /**
-   * Cierra el "encontrado" y el "perdido" activo, si hay.
+   * Cierra el "encontrado"; el servidor cierra con él el "perdido" activo, si hay.
    * @param encontrado reporte "encontrado" de la mascota
    */
   const recuperar = useCallback(
     async (encontrado: ReportePerdida) => {
-      const perdido =
-        encontrado.mascotaId !== null ? reporteActivo(reportes, encontrado.mascotaId) : undefined;
       setRecuperando(true);
       try {
         await cerrarReporte(encontrado.id);
-        if (perdido) await cerrarReporte(perdido.id);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert('¡Qué alegría!', `${encontrado.nombre} ya está en casa y salió del mapa de perdidos.`);
       } catch (e) {
@@ -58,7 +54,7 @@ export function useRecuperarMascota(): UseRecuperarMascota {
         setRecuperando(false);
       }
     },
-    [reportes, cerrarReporte],
+    [cerrarReporte],
   );
 
   /**
