@@ -14,6 +14,7 @@
  */
 
 import { fechaIngresadaAIso, hoy, parsearFecha, parsearHora } from './fechas';
+import { aE164 } from './telefonos';
 
 /** Largo máximo de cada campo de texto de la app (es el `maxLength` del input). */
 export const LIMITES = {
@@ -264,19 +265,6 @@ export function validarRaza(texto: string, requerido = true): string | undefined
 export const EDAD_MAXIMA = 30;
 
 /**
- * Valida la edad en años: obligatoria, entera y dentro de un rango razonable.
- * @param texto lo que escribió el usuario
- * @returns mensaje de error o undefined
- */
-export function validarEdad(texto: string): string | undefined {
-  const valor = texto.trim();
-  if (!valor) return 'Ingresá la edad.';
-  if (!/^\d+$/.test(valor)) return 'Solo números.';
-  if (Number(valor) > EDAD_MAXIMA) return `Máximo ${EDAD_MAXIMA}.`;
-  return undefined;
-}
-
-/**
  * Valida una fecha escrita como dd/mm/aaaa.
  * @param texto lo que escribió el usuario
  * @returns mensaje de error o undefined
@@ -317,6 +305,25 @@ export function validarFechaAplicacion(texto: string): string | undefined {
   const fecha = parsearFecha(iso);
   if (fecha > hoy()) return 'Una aplicación no puede tener fecha futura.';
   if (fecha < sumarAnios(hoy(), -EDAD_MAXIMA)) return 'Revisá el año: la fecha es demasiado vieja.';
+  return undefined;
+}
+
+/**
+ * Valida la fecha de nacimiento de una mascota: formato válido, no futura y
+ * de hace como mucho `EDAD_MAXIMA` años (lo mismo que valida el servidor).
+ * @param texto fecha dd/mm/aaaa
+ * @returns mensaje de error o undefined
+ */
+export function validarFechaNacimiento(texto: string): string | undefined {
+  const error = validarFechaIngresada(texto);
+  if (error) return error;
+  const iso = fechaIngresadaAIso(texto);
+  if (!iso) return undefined;
+  const fecha = parsearFecha(iso);
+  if (fecha > hoy()) return 'La fecha de nacimiento no puede ser futura.';
+  if (fecha < sumarAnios(hoy(), -EDAD_MAXIMA)) {
+    return `Revisá el año: una mascota no puede tener más de ${EDAD_MAXIMA} años.`;
+  }
   return undefined;
 }
 
@@ -370,24 +377,27 @@ export function validarHora(texto: string): string | undefined {
 }
 
 /**
- * Valida un teléfono: entre 8 y 15 dígitos, admitiendo espacios, guiones y "+".
+ * Valida un teléfono con libphonenumber-js (región AR), igual que el servidor:
+ * se puede escribir como "11 15 4589-2310", "011 15 4589-2310" o
+ * "+54 9 11 4589-2310", pero tiene que ser un número real.
  * @param telefono texto ingresado
  * @returns mensaje de error o undefined
  */
 export function validarTelefono(telefono: string): string | undefined {
   const valor = telefono.trim();
   if (!valor) return 'Ingresá un teléfono de contacto.';
-  if (!/^\+?[\d\s-]+$/.test(valor)) return 'Usá solo números, espacios, guiones y "+".';
-  const digitos = valor.replace(/\D/g, '').length;
-  if (digitos < 8 || digitos > 15) return 'El teléfono tiene que tener entre 8 y 15 números.';
+  if (!/^\+?[\d\s\-().]+$/.test(valor)) return 'Usá solo números, espacios, guiones, paréntesis y "+".';
+  if (!aE164(valor)) {
+    return 'No es un número válido. Escribilo con la característica, por ejemplo 11 15 4589-2310 o +54 9 11 4589-2310.';
+  }
   return undefined;
 }
 
 /**
  * Descarta mientras se escribe lo que no puede ir en un teléfono (letras, símbolos).
  * @param texto lo que escribió o pegó el usuario
- * @returns solo números, espacios, guiones y "+"
+ * @returns solo números, espacios, guiones, paréntesis, puntos y "+"
  */
 export function filtrarTelefono(texto: string): string {
-  return texto.replace(/[^\d\s+-]/g, '');
+  return texto.replace(/[^\d\s+\-().]/g, '');
 }

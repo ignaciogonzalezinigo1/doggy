@@ -8,6 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
+import { formatearTelefono } from '@/utils/telefonos';
 import type { Usuario } from '@/types/models';
 
 type Props = {
@@ -30,7 +31,7 @@ export function ContactoEmergencia({ usuario }: Props) {
         <View style={styles.textos}>
           {telefono ? (
             <View style={styles.numeroFila}>
-              <Text style={styles.numero}>{telefono}</Text>
+              <Text style={styles.numero}>{formatearTelefono(telefono)}</Text>
               <MaterialIcons name="verified" size={sizes.iconSm} color={colors.primary} />
             </View>
           ) : (

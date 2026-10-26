@@ -2,17 +2,24 @@
  * Textos para mostrar los valores de los modelos en la interfaz
  * (los modelos guardan claves sin tildes, la UI muestra el texto en español).
  */
+import { mesesCumplidos } from './fechas';
 import { colors } from '@/theme';
 import type { CategoriaTurno, RolMascota, TipoRegistro } from '@/types/models';
 
 /**
- * Texto de la edad: "1 año", "3 años" o "Menos de 1 año".
- * @param edad edad en años
+ * Texto de la edad de una mascota, la única función que la arma para todas
+ * las pantallas: "3 años", "1 año", "5 meses", "1 mes" o "Menos de 1 mes".
+ * Recibe la fecha de nacimiento (mascotas propias) o los meses que ya calculó
+ * el servidor (la mascota de un QR ajeno, de la que no se manda la fecha).
+ * @param edad fecha de nacimiento AAAA-MM-DD, o la edad en meses cumplidos
  * @returns la edad lista para mostrar
  */
-export function textoEdad(edad: number): string {
-  if (edad < 1) return 'Menos de 1 año';
-  return edad === 1 ? '1 año' : `${edad} años`;
+export function textoEdad(edad: string | number): string {
+  const meses = typeof edad === 'number' ? edad : mesesCumplidos(edad);
+  if (meses < 1) return 'Menos de 1 mes';
+  if (meses < 12) return meses === 1 ? '1 mes' : `${meses} meses`;
+  const anios = Math.floor(meses / 12);
+  return anios === 1 ? '1 año' : `${anios} años`;
 }
 
 /** Textos de cada tipo de registro sanitario. */

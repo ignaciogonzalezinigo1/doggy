@@ -150,7 +150,7 @@ export default function PerfilMascotaScreen() {
           <Text style={styles.nombre}>{mascota.nombre}</Text>
           <View style={styles.chips}>
             <Chip label={mascota.raza} size="md" />
-            <Chip label={textoEdad(mascota.edad)} size="md" />
+            <Chip label={textoEdad(mascota.fechaNacimiento)} size="md" />
           </View>
           <PrimaryButton
             title="Editar mascota"

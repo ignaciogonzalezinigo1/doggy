@@ -25,7 +25,8 @@ export type Mascota = {
   nombre: string;
   raza: string;
   /** Edad en años. */
-  edad: number;
+  /** Fecha de nacimiento, sin hora (AAAA-MM-DD). La edad se calcula con `textoEdad`. */
+  fechaNacimiento: string;
   /** ID único que se codifica en el QR de la chapita: DOGGY-XXXX-NOMBRE. */
   codigo: string;
   /** Señas particulares para reconocerla. */
@@ -39,7 +40,10 @@ export type Mascota = {
  * sea de otra familia. El teléfono del tutor solo viene si la mascota está
  * reportada como perdida (o si el usuario está asignado a ella): lo filtra el servidor.
  */
-export type MascotaPublica = Pick<Mascota, 'id' | 'nombre' | 'raza' | 'edad' | 'senas' | 'foto' | 'codigo'> & {
+export type MascotaPublica = Pick<Mascota, 'id' | 'nombre' | 'raza' | 'senas' | 'foto' | 'codigo'> & {
+  /** Edad en meses cumplidos: la calcula el servidor (no manda la fecha de nacimiento). */
+  edadMeses: number;
+  /** El teléfono, en E.164. */
   dueno: { nombre: string; telefono?: string };
 };
 

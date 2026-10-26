@@ -103,7 +103,18 @@ Solo se escribe sobre mascotas a las que el usuario está asignado, como dueño 
 → `doggy-backend/src/lib/asignaciones.ts`, `doggy-backend/src/rutas/mascotas.ts`
 
 **¿Cómo identifica el escáner a un perro ajeno si solo ves tus mascotas?**
-Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. Devuelve solo los datos públicos (nombre, edad, raza, señas, foto, código) y el nombre del tutor, sin carnet ni otros datos del dueño.
+Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. Devuelve solo los datos públicos (nombre, edad en meses, raza, señas, foto, código) y el nombre del tutor, sin carnet ni otros datos del dueño.
+
+**¿Por qué los teléfonos se guardan en E.164?**
+Para que cada número tenga una sola forma (`+5491145892310`) aunque se tipee como "11 15 4589-2310" o "+54 9 11 4589-2310", para que el link `tel:` ande desde cualquier país y para validar que sea un número real. Lo hace libphonenumber-js (región AR) en el servidor y en la app; en pantalla se muestra legible: "+54 9 11 4589-2310".
+→ `doggy-backend/src/lib/telefonos.ts`, `doggy/mobile/src/utils/telefonos.ts`
+
+**¿Por qué fecha de nacimiento y no edad?**
+Porque una edad guardada queda vieja al año. Se guarda la fecha (sin hora) y la edad se calcula al mostrarla, con una sola función (`textoEdad`): "3 años", "5 meses" o "Menos de 1 mes". Al QR ajeno el servidor le manda solo la edad en meses, no la fecha.
+→ `doggy/mobile/src/utils/etiquetas.ts`, `doggy-backend/src/validaciones.ts` (`mesesCumplidos`)
+
+**¿Cómo se migró la edad sin perder datos?**
+`npm run db:migrar-fecha-nacimiento`: suma `fechaNacimiento` como columna opcional, la completa con hoy menos la edad de cada mascota y recién después `prisma db push` saca `edad` y la deja obligatoria. Con `db push` solo no se puede, porque no sabe qué fecha ponerle a las mascotas que ya están.
 
 **¿Se puede avisar que encontraste una mascota que no está perdida?**
 Sí, a propósito: la familia puede no saber todavía que se escapó, y como no está perdida no se muestra su teléfono, así que el aviso es la única forma de contactarla. Quien la encontró queda visible para la familia (nombre y teléfono), y la app se lo dice antes de publicar. Hay un solo aviso activo por mascota: el segundo da 409 "Ya le avisaron a su familia.".

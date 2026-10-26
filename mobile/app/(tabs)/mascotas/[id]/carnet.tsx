@@ -118,7 +118,7 @@ export default function CarnetSanitarioScreen() {
         <View style={styles.resumenTexto}>
           <Text style={styles.nombre}>{mascota.nombre}</Text>
           <Text style={styles.detalle}>
-            {mascota.raza} • {textoEdad(mascota.edad)}
+            {mascota.raza} • {textoEdad(mascota.fechaNacimiento)}
           </Text>
         </View>
       </View>

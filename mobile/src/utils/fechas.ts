@@ -154,3 +154,17 @@ export function horaATexto(fecha: Date): string {
   const minutos = String(fecha.getMinutes()).padStart(2, '0');
   return `${horas}:${minutos}`;
 }
+
+/**
+ * Meses cumplidos desde una fecha sin hora hasta hoy (la edad de una mascota).
+ * Cuenta un mes más recién cuando se llega al mismo día del mes, igual que el servidor.
+ * @param iso fecha AAAA-MM-DD (por ejemplo, la de nacimiento)
+ * @param hasta fecha de referencia (hoy si no se pasa)
+ * @returns los meses cumplidos (0 si todavía no cumplió uno)
+ */
+export function mesesCumplidos(iso: string, hasta: Date = hoy()): number {
+  const desde = parsearFecha(iso);
+  const meses = (hasta.getFullYear() - desde.getFullYear()) * 12 + (hasta.getMonth() - desde.getMonth());
+  const ajuste = hasta.getDate() < desde.getDate() ? 1 : 0;
+  return Math.max(0, meses - ajuste);
+}

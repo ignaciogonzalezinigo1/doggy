@@ -30,7 +30,7 @@ export function ResumenMascota({ mascota }: Props) {
           <Text style={styles.nombre}>{mascota.nombre}</Text>
           <View style={styles.chips}>
             <Chip label={mascota.raza} />
-            <Chip label={textoEdad(mascota.edad)} />
+            <Chip label={textoEdad(mascota.fechaNacimiento)} />
           </View>
         </View>
       </View>

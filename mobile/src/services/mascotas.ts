@@ -37,7 +37,7 @@ export async function buscarMascotaPorCodigo(codigo: string): Promise<MascotaPub
 /**
  * Registra una mascota nueva. El servidor le genera su código único para el
  * QR y deja al usuario como su dueño.
- * Endpoint: POST /api/mascotas  { nombre, raza, edad, senas, foto } -> 201 Mascota
+ * Endpoint: POST /api/mascotas  { nombre, raza, fechaNacimiento (AAAA-MM-DD), senas, foto } -> 201 Mascota
  * @param datos datos del formulario
  * @returns la mascota creada, con id y código
  */

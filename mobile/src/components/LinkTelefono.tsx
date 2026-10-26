@@ -7,9 +7,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Alert, Linking, Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, sizes, spacing, typography } from '@/theme';
+import { enlaceTelefono, formatearTelefono } from '@/utils/telefonos';
 
 type Props = {
-  /** Teléfono como lo cargó el usuario ("+54 9 11 4589-2310"). */
+  /** Teléfono guardado, en E.164 ("+5491145892310"). */
   telefono: string;
   /** A quién se llama, para el lector de pantalla. */
   nombre: string;
@@ -21,12 +22,15 @@ type Props = {
  * @returns el número con un ícono de llamada
  */
 export function LinkTelefono({ telefono, nombre }: Props) {
-  /** Abre el marcador del celular con el número (sin espacios ni guiones). */
+  /** Se muestra legible ("+54 9 11 4589-2310"); el link usa E.164. */
+  const legible = formatearTelefono(telefono);
+
+  /** Abre el marcador del celular con el número. */
   const llamar = async () => {
     try {
-      await Linking.openURL(`tel:${telefono.replace(/[^\d+]/g, '')}`);
+      await Linking.openURL(enlaceTelefono(telefono));
     } catch {
-      Alert.alert('No se pudo abrir el teléfono', `Llamá a ${nombre} al ${telefono}.`);
+      Alert.alert('No se pudo abrir el teléfono', `Llamá a ${nombre} al ${legible}.`);
     }
   };
 
@@ -35,13 +39,13 @@ export function LinkTelefono({ telefono, nombre }: Props) {
       onPress={llamar}
       hitSlop={spacing.sm}
       accessibilityRole="link"
-      accessibilityLabel={`Llamar a ${nombre} al ${telefono}`}
+      accessibilityLabel={`Llamar a ${nombre} al ${legible}`}
       style={styles.link}
     >
       {({ pressed }) => (
         <>
           <MaterialIcons name="call" size={sizes.iconSm} color={colors.primary} />
-          <Text style={[styles.numero, pressed && styles.pressed]}>{telefono}</Text>
+          <Text style={[styles.numero, pressed && styles.pressed]}>{legible}</Text>
         </>
       )}
     </Pressable>

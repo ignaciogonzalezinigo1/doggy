@@ -291,7 +291,7 @@ export default function ReportarScreen() {
                 <View style={styles.identificadaTexto}>
                   <Text style={styles.identificadaNombre}>{identificada.nombre}</Text>
                   <Text style={styles.identificadaDato}>
-                    {`${identificada.raza} · ${textoEdad(identificada.edad)}`}
+                    {`${identificada.raza} · ${textoEdad(identificada.edadMeses)}`}
                   </Text>
                   <Text style={styles.identificadaDato}>{`Su familia: ${identificada.dueno.nombre}`}</Text>
                   {perdida && (

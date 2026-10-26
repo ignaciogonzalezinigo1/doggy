@@ -9,6 +9,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import { spacing } from '@/theme';
+import { formatearTelefono } from '@/utils/telefonos';
 import type { Usuario } from '@/types/models';
 import {
   filtrarTelefono,
@@ -61,7 +62,8 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
     apellido: usuario.apellido,
     ubicacion: usuario.ubicacion,
     email: usuario.email,
-    telefonoEmergencia: usuario.telefonoEmergencia,
+    // Se edita legible ("+54 9 11 4589-2310"); el servidor lo vuelve a guardar en E.164.
+    telefonoEmergencia: usuario.telefonoEmergencia ? formatearTelefono(usuario.telefonoEmergencia) : '',
   });
   const [errores, setErrores] = useState<Errores>({});
   const [guardando, setGuardando] = useState(false);
@@ -150,7 +152,7 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
       <Input
         label="Teléfono de emergencia"
         icon="phone-iphone"
-        placeholder="+54 9 11 1234-5678"
+        placeholder="11 15 4589-2310 o +54 9 11 4589-2310"
         value={form.telefonoEmergencia}
         // Algunos teclados dejan pegar letras: se descartan antes de guardar el valor.
         onChangeText={(texto) => handleChange('telefonoEmergencia')(filtrarTelefono(texto))}

@@ -1,8 +1,8 @@
 /**
  * Formulario de datos de una mascota, compartido por el alta y la edición.
  *
- * Tiene la foto (sacada con la cámara o elegida de la galería), nombre, raza, edad y
- * señas particulares, con validación local (largo máximo y caracteres
+ * Tiene la foto (sacada con la cámara o elegida de la galería), nombre, raza,
+ * fecha de nacimiento (dd/mm/aaaa, como las fechas del carnet) y señas particulares, con validación local (largo máximo y caracteres
  * permitidos en cada campo, ver `validaciones.ts`). No sabe si está creando o
  * editando: recibe los valores iniciales y le entrega los datos ya validados
  * y limpios a `onGuardar`, que decide qué hacer con ellos. Mientras
@@ -18,10 +18,11 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { useFototeca } from '@/hooks/useFototeca';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import type { NuevaMascota } from '@/types/models';
+import { enmascararFecha, fechaIngresadaAIso, formatearFecha } from '@/utils/fechas';
 import {
   LIMITES,
   limpiarTexto,
-  validarEdad,
+  validarFechaNacimiento,
   validarNombreMascota,
   validarRaza,
   validarTexto,
@@ -30,13 +31,13 @@ import {
 type Formulario = {
   nombre: string;
   raza: string;
-  /** Texto del input; se convierte a número al guardar. */
-  edad: string;
+  /** dd/mm/aaaa en hora local; se convierte a AAAA-MM-DD al guardar (sin toISOString). */
+  fechaNacimiento: string;
   senas: string;
   foto: string | null;
 };
 
-type CampoTexto = 'nombre' | 'raza' | 'edad' | 'senas';
+type CampoTexto = 'nombre' | 'raza' | 'fechaNacimiento' | 'senas';
 type Errores = Partial<Record<CampoTexto, string>>;
 
 type Props = {
@@ -57,7 +58,7 @@ function aFormulario(mascota?: NuevaMascota): Formulario {
   return {
     nombre: mascota?.nombre ?? '',
     raza: mascota?.raza ?? '',
-    edad: mascota ? String(mascota.edad) : '',
+    fechaNacimiento: mascota ? formatearFecha(mascota.fechaNacimiento) : '',
     senas: mascota?.senas ?? '',
     foto: mascota?.foto ?? null,
   };
@@ -72,7 +73,7 @@ function validarFormulario(form: Formulario): Errores {
   return {
     nombre: validarNombreMascota(form.nombre),
     raza: validarRaza(form.raza),
-    edad: validarEdad(form.edad),
+    fechaNacimiento: validarFechaNacimiento(form.fechaNacimiento),
     senas: validarTexto(form.senas, {
       requerido: 'Contá alguna seña para reconocerla.',
       min: 5,
@@ -96,7 +97,7 @@ export function MascotaForm({ inicial, textoBoton = 'Guardar', onGuardar }: Prop
   const [errores, setErrores] = useState<Errores>({});
   const [guardando, setGuardando] = useState(false);
   const razaRef = useRef<TextInputInstance>(null);
-  const edadRef = useRef<TextInputInstance>(null);
+  const fechaRef = useRef<TextInputInstance>(null);
   const senasRef = useRef<TextInputInstance>(null);
 
   // --- Handlers ---
@@ -136,7 +137,8 @@ export function MascotaForm({ inicial, textoBoton = 'Guardar', onGuardar }: Prop
       await onGuardar({
         nombre: limpiarTexto(form.nombre),
         raza: limpiarTexto(form.raza),
-        edad: Number(form.edad),
+        // Ya validada: el formato dd/mm/aaaa es correcto.
+        fechaNacimiento: fechaIngresadaAIso(form.fechaNacimiento) ?? '',
         senas: limpiarTexto(form.senas, true),
         foto: form.foto,
       });
@@ -181,39 +183,33 @@ export function MascotaForm({ inicial, textoBoton = 'Guardar', onGuardar }: Prop
           submitBehavior="submit"
         />
 
-        <View style={styles.fila}>
-          <View style={styles.filaRaza}>
-            <Input
-              ref={razaRef}
-              label="Raza"
-              placeholder="Ej: Golden Retriever"
-              value={form.raza}
-              onChangeText={handleChange('raza')}
-              error={errores.raza}
-              autoCapitalize="words"
-              maxLength={LIMITES.raza}
-              returnKeyType="next"
-              onSubmitEditing={() => edadRef.current?.focus()}
-              submitBehavior="submit"
-            />
-          </View>
-          <View style={styles.filaEdad}>
-            <Input
-              ref={edadRef}
-              label="Edad (años)"
-              placeholder="3"
-              value={form.edad}
-              // Algunos teclados dejan pegar letras: se descartan antes de guardar el valor.
-              onChangeText={(texto) => handleChange('edad')(texto.replace(/\D/g, ''))}
-              error={errores.edad}
-              keyboardType="number-pad"
-              maxLength={2}
-              returnKeyType="next"
-              onSubmitEditing={() => senasRef.current?.focus()}
-              submitBehavior="submit"
-            />
-          </View>
-        </View>
+        <Input
+          ref={razaRef}
+          label="Raza"
+          placeholder="Ej: Golden Retriever"
+          value={form.raza}
+          onChangeText={handleChange('raza')}
+          error={errores.raza}
+          autoCapitalize="words"
+          maxLength={LIMITES.raza}
+          returnKeyType="next"
+          onSubmitEditing={() => fechaRef.current?.focus()}
+          submitBehavior="submit"
+        />
+        <Input
+          ref={fechaRef}
+          label="Fecha de nacimiento"
+          icon="cake"
+          placeholder="dd/mm/aaaa"
+          value={form.fechaNacimiento}
+          onChangeText={(texto) => handleChange('fechaNacimiento')(enmascararFecha(texto))}
+          error={errores.fechaNacimiento}
+          keyboardType="number-pad"
+          maxLength={10}
+          returnKeyType="next"
+          onSubmitEditing={() => senasRef.current?.focus()}
+          submitBehavior="submit"
+        />
 
         <Input
           ref={senasRef}
@@ -249,15 +245,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: colors.surfaceContainerLowest,
     ...shadows.level1,
-  },
-  fila: {
-    flexDirection: 'row',
-    gap: spacing.stackSm,
-  },
-  filaRaza: {
-    flex: 2,
-  },
-  filaEdad: {
-    flex: 1,
   },
 });
