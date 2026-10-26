@@ -8,6 +8,7 @@
  * aceptan exactamente los mismos números.
  */
 import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
+import { Alert } from 'react-native';
 
 /** País que se asume cuando el número no trae código de país. */
 const REGION_TELEFONO = 'AR';
@@ -77,4 +78,27 @@ export function enlaceWhatsApp(telefono: string, texto: string): string {
  */
 export function enlaceMapa(punto: { lat: number; lng: number }): string {
   return `https://maps.google.com/?q=${punto.lat},${punto.lng}`;
+}
+
+/**
+ * Aviso no bloqueante al guardar un teléfono: si es válido pero fijo, avisa
+ * que no va a servir para WhatsApp y deja elegir. "Guardar igual" sigue con
+ * `continuar`; "Corregir" vuelve al formulario. Si es celular, sigue directo.
+ * Lo usan el registro y el perfil.
+ * @param telefono teléfono ya validado con `validarTelefono`
+ * @param continuar lo que guarda
+ */
+export function confirmarSiEsFijo(telefono: string, continuar: () => void): void {
+  if (esCelular(telefono)) {
+    continuar();
+    return;
+  }
+  Alert.alert(
+    'Teléfono fijo',
+    'Lo guardamos como teléfono fijo: no se va a poder usar WhatsApp. Si es un celular, agregá el 15.',
+    [
+      { text: 'Corregir', style: 'cancel' },
+      { text: 'Guardar igual', onPress: continuar },
+    ],
+  );
 }

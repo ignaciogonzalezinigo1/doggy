@@ -2,9 +2,10 @@
  * Menú de acciones rápidas de una mascota, el que se abre al mantener
  * presionada su card en "Mis Mascotas".
  *
- * Opciones: Editar, Reportar como perdida (o "Ya apareció" si tiene un
- * reporte activo) y Compartir QR. Son las mismas acciones que tiene el
- * perfil de la mascota, que sigue siendo la forma tocable de llegar a ellas.
+ * Opciones: Editar y Reportar como perdida (o "Ya apareció" si tiene un
+ * reporte activo). Son las mismas acciones que tiene el perfil de la
+ * mascota, que sigue siendo la forma tocable de llegar a ellas. El QR se
+ * descarga y se comparte solo desde el perfil (`QrIdentificacion`).
  *
  * En iOS se muestra con `ActionSheetIOS`, y en Android con un Alert con
  * botones, como en `useFototeca`. El Alert de Android admite como mucho tres
@@ -16,7 +17,6 @@ import { ActionSheetIOS, Alert, Platform } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import type { Mascota } from '@/types/models';
-import { compartirQr } from '@/utils/compartir';
 import { reporteActivo } from '@/utils/selectores';
 import { useCerrarReporte } from './useCerrarReporte';
 
@@ -42,7 +42,7 @@ export function useMenuMascota(): UseMenuMascota {
   const { pedirCierre } = useCerrarReporte();
 
   /**
-   * Arma las tres opciones según si la mascota ya está reportada como perdida.
+   * Arma las opciones según si la mascota ya está reportada como perdida.
    * @param mascota mascota elegida
    * @returns las opciones en el orden en que se muestran
    */
@@ -62,7 +62,6 @@ export function useMenuMascota(): UseMenuMascota {
               accion: () =>
                 router.push({ pathname: '/mi-mascota-perdida', params: { mascotaId: id } }),
             },
-        { texto: 'Compartir QR', accion: () => compartirQr(mascota) },
       ];
     },
     [reportes, pedirCierre],

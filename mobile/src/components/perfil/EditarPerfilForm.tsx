@@ -9,10 +9,9 @@ import { Alert, StyleSheet, View } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import { spacing } from '@/theme';
-import { aE164, esCelular, formatearTelefono } from '@/utils/telefonos';
+import { aE164, confirmarSiEsFijo, formatearTelefono } from '@/utils/telefonos';
 import type { Usuario } from '@/types/models';
 import {
-  filtrarTelefono,
   LIMITES,
   limpiarTexto,
   normalizarEmail,
@@ -22,6 +21,7 @@ import {
   validarUbicacion,
 } from '@/utils/validaciones';
 import { Input } from '../Input';
+import { InputTelefono } from '../InputTelefono';
 import { PrimaryButton } from '../PrimaryButton';
 
 type Props = {
@@ -88,19 +88,10 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
     setErrores(nuevos);
     if (Object.values(nuevos).some(Boolean)) return;
 
+    // Solo se avisa si cambió: si no, una cuenta con fijo vería el aviso cada vez que guarda.
     const cambioTelefono = aE164(form.telefonoEmergencia) !== usuario.telefonoEmergencia;
-    if (cambioTelefono && !esCelular(form.telefonoEmergencia)) {
-      Alert.alert(
-        'Teléfono fijo',
-        'Lo guardamos como teléfono fijo: no se va a poder usar WhatsApp. Si es un celular, agregá el 15.',
-        [
-          { text: 'Corregir', style: 'cancel' },
-          { text: 'Guardar igual', onPress: guardar },
-        ],
-      );
-      return;
-    }
-    guardar();
+    if (cambioTelefono) confirmarSiEsFijo(form.telefonoEmergencia, guardar);
+    else guardar();
   };
 
   /** Guarda los cambios (PATCH /api/usuarios/me); el servidor guarda el teléfono en E.164. */
@@ -170,17 +161,10 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
         autoCorrect={false}
         maxLength={LIMITES.email}
       />
-      <Input
-        label="Teléfono de emergencia"
-        icon="phone-iphone"
-        placeholder="Ej: 11 15 4589-2310"
-        ayuda="Si es un celular, incluí el 15 o el 9 para que te puedan escribir por WhatsApp"
+      <InputTelefono
         value={form.telefonoEmergencia}
-        // Algunos teclados dejan pegar letras: se descartan antes de guardar el valor.
-        onChangeText={(texto) => handleChange('telefonoEmergencia')(filtrarTelefono(texto))}
+        onChangeText={handleChange('telefonoEmergencia')}
         error={errores.telefonoEmergencia}
-        keyboardType="phone-pad"
-        maxLength={LIMITES.telefono}
       />
 
       <PrimaryButton

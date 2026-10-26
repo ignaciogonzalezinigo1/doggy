@@ -4,14 +4,21 @@
  * Genera un QR real (react-native-qrcode-svg) con el ID único de la mascota.
  * Es el mismo código que se graba en la placa del collar: quien la encuentre
  * lo escanea y la app identifica a la mascota y a su tutor.
+ *
+ * Es el único lugar con acciones de QR: "Descargar QR" lo guarda en la galería
+ * y "Compartir QR" comparte el archivo de imagen (ver `useQrImagen`). La
+ * imagen es `FichaQr`, que se dibuja fuera de la pantalla: un PNG cuadrado con
+ * fondo blanco y margen, el nombre arriba, el QR grande y "Escaneame con
+ * Doggy" abajo, listo para imprimir en la chapita.
  */
 import { MaterialIcons } from '@expo/vector-icons';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { forwardRef, useRef } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ViewInstance } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
+import { useQrImagen } from '@/hooks/useQrImagen';
 import { colors, radius, sizes, spacing, typography } from '@/theme';
 import type { Mascota } from '@/types/models';
-import { compartirQr } from '@/utils/compartir';
 import { Badge } from './Badge';
 import { SectionCard } from './SectionCard';
 
@@ -19,6 +26,9 @@ const logo = require('@/assets/images/logo.png');
 
 /** Lado del QR en puntos. */
 const QR_SIZE = 96;
+/** Lado de la imagen para imprimir y del QR dentro de ella (en puntos; la captura sale en píxeles físicos). */
+const FICHA = 360;
+const QR_FICHA = 260;
 
 type Props = {
   mascota: Mascota;
@@ -30,81 +40,138 @@ type Props = {
  * @returns la card del QR
  */
 export function QrIdentificacion({ mascota }: Props) {
-  // --- Handlers ---
-  /** Guardar el QR como imagen requiere permisos de galería de escritura: queda para más adelante. */
-  const handleDescargar = () => {
-    Alert.alert(
-      'Descargar QR',
-      'Disponible próximamente. Vas a poder guardar el QR en tu galería para imprimirlo o grabarlo en la placa.',
-    );
-  };
-
-  /** Abre la hoja de compartir del sistema con el ID de la mascota. */
-  const handleCompartir = () => compartirQr(mascota);
+  const ficha = useRef<ViewInstance>(null);
+  const { trabajando, compartir, descargar } = useQrImagen(ficha, mascota.nombre);
 
   // --- Render ---
   return (
-    <SectionCard>
-      <View style={styles.header}>
-        <View style={styles.titulo}>
-          <MaterialIcons name="qr-code-2" size={sizes.iconSm + 2} color={colors.primary} />
-          <Text style={styles.tituloTexto}>Código QR de Identificación</Text>
-        </View>
-        <Badge label="Placa & Collar" />
-      </View>
-
-      <View style={styles.cuerpo}>
-        <View style={styles.qr} accessibilityLabel={`Código QR con el ID ${mascota.codigo}`}>
-          <QRCode
-            value={mascota.codigo}
-            size={QR_SIZE}
-            color={colors.primary}
-            backgroundColor={colors.white}
-            logo={logo}
-            logoSize={QR_SIZE * 0.26}
-            logoBackgroundColor={colors.white}
-            logoBorderRadius={radius.full}
-            // Corrección de errores alta: el logo tapa parte del código y se sigue leyendo.
-            ecl="H"
-          />
+    <>
+      <SectionCard>
+        <View style={styles.header}>
+          <View style={styles.titulo}>
+            <MaterialIcons name="qr-code-2" size={sizes.iconSm + 2} color={colors.primary} />
+            <Text style={styles.tituloTexto}>Código QR de Identificación</Text>
+          </View>
+          <Badge label="Placa & Collar" />
         </View>
 
-        <View style={styles.info}>
-          <View style={styles.idFila}>
-            <Text style={styles.idLabel}>ID ÚNICO:</Text>
-            <Text style={styles.idValor} selectable>
-              {mascota.codigo}
+        <View style={styles.cuerpo}>
+          <View style={styles.qr} accessibilityLabel={`Código QR con el ID ${mascota.codigo}`}>
+            <QRCode
+              value={mascota.codigo}
+              size={QR_SIZE}
+              color={colors.primary}
+              backgroundColor={colors.white}
+              logo={logo}
+              logoSize={QR_SIZE * 0.26}
+              logoBackgroundColor={colors.white}
+              logoBorderRadius={radius.full}
+              // Corrección de errores alta: el logo tapa parte del código y se sigue leyendo.
+              ecl="H"
+            />
+          </View>
+
+          <View style={styles.info}>
+            <View style={styles.idFila}>
+              <Text style={styles.idLabel}>ID ÚNICO:</Text>
+              <Text style={styles.idValor} selectable>
+                {mascota.codigo}
+              </Text>
+            </View>
+            <Text style={styles.ayuda}>
+              Escaneá para ver ficha médica de emergencia y contacto del tutor.
             </Text>
-          </View>
-          <Text style={styles.ayuda}>
-            Escaneá para ver ficha médica de emergencia y contacto del tutor.
-          </Text>
-          <View style={styles.acciones}>
-            <Pressable
-              onPress={handleDescargar}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.boton, styles.botonPrimario, pressed && styles.pressed]}
-            >
-              <MaterialIcons name="download" size={sizes.iconSm - 2} color={colors.onPrimary} />
-              <Text style={[styles.botonTexto, styles.botonTextoPrimario]}>Descargar QR</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleCompartir}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.boton, styles.botonOutline, pressed && styles.pressed]}
-            >
-              <MaterialIcons name="share" size={sizes.iconSm - 2} color={colors.primary} />
-              <Text style={[styles.botonTexto, styles.botonTextoOutline]}>Compartir</Text>
-            </Pressable>
+            <View style={styles.acciones}>
+              <Pressable
+                onPress={descargar}
+                disabled={trabajando}
+                accessibilityRole="button"
+                accessibilityState={{ busy: trabajando }}
+                style={({ pressed }) => [styles.boton, styles.botonPrimario, pressed && styles.pressed]}
+              >
+                <MaterialIcons name="download" size={sizes.iconSm - 2} color={colors.onPrimary} />
+                <Text style={[styles.botonTexto, styles.botonTextoPrimario]}>Descargar QR</Text>
+              </Pressable>
+              <Pressable
+                onPress={compartir}
+                disabled={trabajando}
+                accessibilityRole="button"
+                accessibilityState={{ busy: trabajando }}
+                style={({ pressed }) => [styles.boton, styles.botonOutline, pressed && styles.pressed]}
+              >
+                <MaterialIcons name="share" size={sizes.iconSm - 2} color={colors.primary} />
+                <Text style={[styles.botonTexto, styles.botonTextoOutline]}>Compartir QR</Text>
+              </Pressable>
+              {trabajando && <ActivityIndicator color={colors.primary} />}
+            </View>
           </View>
         </View>
+      </SectionCard>
+
+      {/* La imagen que se guarda o comparte: no se ve, se captura con view-shot. */}
+      <View
+        style={styles.fueraDePantalla}
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <FichaQr ref={ficha} mascota={mascota} />
       </View>
-    </SectionCard>
+    </>
   );
 }
 
+/**
+ * Imagen del QR para imprimir: cuadrada, fondo blanco con margen, el nombre
+ * arriba, el QR grande y "Escaneame con Doggy" abajo.
+ * `collapsable={false}`: en Android, sin eso la vista se puede optimizar y no se captura.
+ */
+const FichaQr = forwardRef<ViewInstance, Props>(function FichaQr({ mascota }, ref) {
+  return (
+    <View ref={ref} collapsable={false} style={styles.ficha}>
+      <Text style={styles.fichaNombre} numberOfLines={1}>
+        {mascota.nombre}
+      </Text>
+      <QRCode
+        value={mascota.codigo}
+        size={QR_FICHA}
+        color={colors.onBackground}
+        backgroundColor={colors.white}
+        logo={logo}
+        logoSize={QR_FICHA * 0.22}
+        logoBackgroundColor={colors.white}
+        logoBorderRadius={radius.full}
+        ecl="H"
+      />
+      <Text style={styles.fichaPie}>Escaneame con Doggy</Text>
+    </View>
+  );
+});
+
 // --- Estilos ---
 const styles = StyleSheet.create({
+  fueraDePantalla: {
+    position: 'absolute',
+    left: -10000,
+    top: 0,
+  },
+  ficha: {
+    width: FICHA,
+    height: FICHA,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: colors.white,
+  },
+  fichaNombre: {
+    ...typography.headlineMd,
+    color: colors.onBackground,
+  },
+  fichaPie: {
+    ...typography.labelMd,
+    color: colors.onBackground,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

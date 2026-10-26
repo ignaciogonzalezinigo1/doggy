@@ -2,10 +2,11 @@
  * Pantalla de Registro.
  *
  * Mismo estilo que el Login: fondo teal y el formulario en una card clara.
- * Pide nombre, apellido, email y contraseña con confirmación, y valida todo
- * localmente: nombre y apellido solo con letras, email con formato válido y
- * contraseña de 8 a 64 caracteres, sin espacios, con al menos una letra y un
- * número. Cada campo tiene su largo máximo. Con todo válido crea la cuenta
+ * Pide nombre, apellido, email, teléfono y contraseña con confirmación, y
+ * valida todo localmente: nombre y apellido solo con letras, email con
+ * formato válido, teléfono real (libphonenumber-js, el mismo `InputTelefono`
+ * y el mismo aviso de fijo que el perfil) y contraseña de 8 a 64 caracteres,
+ * sin espacios, con al menos una letra y un número. Cada campo tiene su largo máximo. Con todo válido crea la cuenta
  * contra la API, deja la sesión abierta y entra a la tab Mascotas con un
  * saludo que invita a completar el perfil. Si el servidor la rechaza (por
  * ejemplo, el email ya tiene cuenta), muestra su mensaje.
@@ -17,11 +18,13 @@ import { Alert, Pressable, StyleSheet, Text, type TextInputInstance, View } from
 
 import { BackButton } from '@/components/BackButton';
 import { Input } from '@/components/Input';
+import { InputTelefono } from '@/components/InputTelefono';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { useApp } from '@/context/AppContext';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { volver } from '@/utils/navegacion';
+import { confirmarSiEsFijo } from '@/utils/telefonos';
 import {
   LIMITES,
   limpiarTexto,
@@ -31,12 +34,14 @@ import {
   validarEmail,
   validarNombrePersona,
   validarPasswordNueva,
+  validarTelefono,
 } from '@/utils/validaciones';
 
 type Formulario = {
   nombre: string;
   apellido: string;
   email: string;
+  telefonoEmergencia: string;
   password: string;
   confirmacion: string;
 };
@@ -48,6 +53,7 @@ const FORM_INICIAL: Formulario = {
   nombre: '',
   apellido: '',
   email: '',
+  telefonoEmergencia: '',
   password: '',
   confirmacion: '',
 };
@@ -62,6 +68,7 @@ function validarFormulario(form: Formulario): Errores {
     nombre: validarNombrePersona(form.nombre, 'Ingresá tu nombre.'),
     apellido: validarNombrePersona(form.apellido, 'Ingresá tu apellido.'),
     email: validarEmail(form.email),
+    telefonoEmergencia: validarTelefono(form.telefonoEmergencia),
     password: validarPasswordNueva(form.password),
     confirmacion: validarConfirmacion(form.password, form.confirmacion),
   };
@@ -80,6 +87,7 @@ export default function RegistroScreen() {
   const [enviando, setEnviando] = useState(false);
   const apellidoRef = useRef<TextInputInstance>(null);
   const emailRef = useRef<TextInputInstance>(null);
+  const telefonoRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
   const confirmacionRef = useRef<TextInputInstance>(null);
 
@@ -94,15 +102,21 @@ export default function RegistroScreen() {
   };
 
   /**
-   * Valida y, si todo está bien, crea la cuenta (queda la sesión abierta),
-   * entra a la tab Mascotas sin dejar el registro en el historial y saluda.
+   * Valida y, si el teléfono es fijo, avisa antes de seguir (sin bloquear).
    */
-  const handleCrearCuenta = async () => {
+  const handleCrearCuenta = () => {
     if (enviando) return;
     const nuevos = validarFormulario(form);
     setErrores(nuevos);
     if (Object.values(nuevos).some(Boolean)) return;
+    confirmarSiEsFijo(form.telefonoEmergencia, crearCuenta);
+  };
 
+  /**
+   * Crea la cuenta (queda la sesión abierta), entra a la tab Mascotas sin
+   * dejar el registro en el historial y saluda.
+   */
+  const crearCuenta = async () => {
     const nombre = limpiarTexto(form.nombre);
     setEnviando(true);
     try {
@@ -110,12 +124,13 @@ export default function RegistroScreen() {
         nombre,
         apellido: limpiarTexto(form.apellido),
         email: normalizarEmail(form.email),
+        telefonoEmergencia: limpiarTexto(form.telefonoEmergencia),
         password: form.password,
       });
       router.replace('/mascotas');
       Alert.alert(
         'Cuenta creada',
-        `¡Bienvenido/a a Doggy, ${nombre}! Ya podés cargar tus mascotas. Completá tu ubicación y tu teléfono de emergencia desde Perfil.`,
+        `¡Bienvenido/a a Doggy, ${nombre}! Ya podés cargar tus mascotas. Completá tu ubicación desde Perfil.`,
       );
     } catch (e) {
       Alert.alert('No pudimos crear la cuenta', e instanceof Error ? e.message : 'Intentá de nuevo.');
@@ -197,8 +212,17 @@ export default function RegistroScreen() {
           autoCorrect={false}
           maxLength={LIMITES.email}
           returnKeyType="next"
-          onSubmitEditing={() => passwordRef.current?.focus()}
+          onSubmitEditing={() => telefonoRef.current?.focus()}
           submitBehavior="submit"
+        />
+        <InputTelefono
+          ref={telefonoRef}
+          label="Teléfono"
+          value={form.telefonoEmergencia}
+          onChangeText={handleChange('telefonoEmergencia')}
+          error={errores.telefonoEmergencia}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
         />
         <Input
           ref={passwordRef}

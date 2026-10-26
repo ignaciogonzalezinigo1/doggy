@@ -17,13 +17,15 @@ export type DatosRegistro = {
   nombre: string;
   apellido: string;
   email: string;
+  /** Obligatorio; el servidor lo guarda en E.164. */
+  telefonoEmergencia: string;
   password: string;
 };
 
 /**
  * Crea una cuenta y deja la sesión abierta.
- * Endpoint: POST /api/auth/registro  { nombre, apellido, email, password }
- *   -> 201 { usuario, token } · 400 · 409 email ya registrado
+ * Endpoint: POST /api/auth/registro  { nombre, apellido, email, telefonoEmergencia, password }
+ *   -> 201 { usuario, token } · 400 (también si falta el teléfono o no es válido) · 409 email ya registrado
  * @param datos datos del formulario, ya validados y limpios
  * @returns el usuario nuevo y su token
  */
