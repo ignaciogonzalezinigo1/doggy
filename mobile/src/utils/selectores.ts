@@ -148,6 +148,21 @@ export function reporteActivo(
 }
 
 /**
+ * Reporte de "encontrado" activo de una mascota, si tiene (el más reciente):
+ * alguien la encontró, por ejemplo escaneando su chapita. Se usa con las
+ * mascotas del usuario para avisarle "¡Encontraron a …!".
+ * @param reportes todos los reportes
+ * @param mascotaId id de la mascota
+ * @returns el reporte o undefined si nadie avisó que la encontró
+ */
+export function reporteEncontrado(
+  reportes: ReportePerdida[],
+  mascotaId: number,
+): ReportePerdida | undefined {
+  return filtrarReportes(reportes, '', 'encontrado').find((r) => r.mascotaId === mascotaId);
+}
+
+/**
  * Indica si el usuario puede editar o cerrar un reporte de perdido: lo
  * publicó él o la mascota está en su cuenta (dueño o invitado), así quien la
  * encuentre de la familia puede sacarla del mapa aunque no la haya reportado.

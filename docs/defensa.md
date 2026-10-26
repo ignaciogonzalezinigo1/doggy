@@ -103,7 +103,10 @@ Solo se escribe sobre mascotas a las que el usuario está asignado, como dueño 
 → `doggy-backend/src/lib/asignaciones.ts`, `doggy-backend/src/rutas/mascotas.ts`
 
 **¿Cómo identifica el escáner a un perro ajeno si solo ves tus mascotas?**
-Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. Devuelve solo los datos públicos (nombre, raza, señas, foto, código), sin dueño, edad ni carnet.
+Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. Devuelve solo los datos públicos (nombre, edad, raza, señas, foto, código) y el nombre del tutor, sin carnet ni otros datos del dueño.
+
+**¿Quién ve el teléfono del dueño al escanear el QR?**
+Solo si la mascota tiene un reporte de perdida activo (o si quien escanea está asignado a ella). Lo filtra el servidor en `aMascotaPublica`: si lo ocultara solo la app, igual viajaría en la respuesta y cualquiera podría leerlo llamando a la API.
 → `doggy-backend/src/rutas/mascotas.ts`, `doggy-backend/src/respuestas.ts` (`aMascotaPublica`)
 
 ## Fotos

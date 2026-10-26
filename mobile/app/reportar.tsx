@@ -7,6 +7,9 @@
  *   autocompletar sus datos,
  * - cámara y fototeca: sacarle una foto en el momento o elegir una de la galería,
  * - GPS: precargar en el mini mapa el punto donde se la encontró.
+ * Al identificarla por el QR se muestra quién es: nombre, edad, raza, foto y
+ * el nombre de su tutor. Si está reportada como perdida, el servidor suma el
+ * teléfono del tutor y aparece como link para llamarlo; si no, no lo manda.
  * El nombre es opcional porque quien la encuentra muchas veces no lo sabe.
  * Al confirmar se crea el reporte "encontrado", vibra, se cierra el modal y
  * se muestra el nuevo marker en Perdidos.
@@ -27,9 +30,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/Avatar';
 import { AvisoPermisoFoto } from '@/components/AvisoPermisoFoto';
 import { FotoEditable } from '@/components/FotoEditable';
 import { Input } from '@/components/Input';
+import { LinkTelefono } from '@/components/LinkTelefono';
 import { PermissionNotice } from '@/components/PermissionNotice';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { EscanerQr, ResultadoLectura } from '@/components/reporte/EscanerQr';
@@ -42,6 +47,7 @@ import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import { ErrorApi } from '@/services/http';
 import type { MascotaPublica } from '@/types/models';
 import { CODIGO_MASCOTA_REGEX } from '@/utils/codigos';
+import { textoEdad } from '@/utils/etiquetas';
 import { CENTRO_CABA } from '@/utils/mapa';
 import {
   LIMITES,
@@ -72,6 +78,8 @@ export default function ReportarScreen() {
 
   // --- Estado ---
   const [mascotaId, setMascotaId] = useState<number | null>(null);
+  /** Mascota identificada por el QR, con el nombre (y si está perdida, el teléfono) de su tutor. */
+  const [identificada, setIdentificada] = useState<MascotaPublica | null>(null);
   const [nombre, setNombre] = useState('');
   const [raza, setRaza] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -92,6 +100,7 @@ export default function ReportarScreen() {
    */
   const precargar = useCallback((mascota: MascotaPublica) => {
     setMascotaId(mascota.id);
+    setIdentificada(mascota);
     setNombre(mascota.nombre);
     setRaza(mascota.raza);
     setDescripcion(mascota.senas);
@@ -248,6 +257,26 @@ export default function ReportarScreen() {
             </View>
           )}
 
+          {/* Quién es: lo que el servidor deja ver de una mascota ajena */}
+          {identificada && (
+            <View style={[styles.card, styles.identificada]}>
+              <Avatar foto={identificada.foto} nombre={identificada.nombre} size={sizes.avatarLg - 32} />
+              <View style={styles.identificadaTexto}>
+                <Text style={styles.identificadaNombre}>{identificada.nombre}</Text>
+                <Text style={styles.identificadaDato}>
+                  {`${identificada.raza} · ${textoEdad(identificada.edad)}`}
+                </Text>
+                <Text style={styles.identificadaDato}>{`Su familia: ${identificada.dueno.nombre}`}</Text>
+                {identificada.dueno.telefono && (
+                  <>
+                    <Text style={styles.identificadaPerdida}>Está perdida: avisale a su familia.</Text>
+                    <LinkTelefono telefono={identificada.dueno.telefono} nombre={identificada.dueno.nombre} />
+                  </>
+                )}
+              </View>
+            </View>
+          )}
+
           {/* Datos de la mascota */}
           <View style={styles.card}>
             <View style={styles.fotoFila}>
@@ -388,6 +417,27 @@ const styles = StyleSheet.create({
     ...typography.bodySm,
     color: colors.onSurface,
     flex: 1,
+  },
+  identificada: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  identificadaTexto: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  identificadaNombre: {
+    ...typography.headlineMd,
+    color: colors.primary,
+  },
+  identificadaDato: {
+    ...typography.bodySm,
+    color: colors.onSurfaceVariant,
+  },
+  identificadaPerdida: {
+    ...typography.labelMd,
+    color: colors.tertiaryContainer,
   },
   card: {
     gap: spacing.stackSm,

@@ -7,6 +7,8 @@
  * para reportarla como perdida ("Se perdió mi mascota", con sus datos ya cargados).
  * Si ya está reportada como perdida, en lugar de ese botón muestra el aviso
  * con la zona y el radio de búsqueda, "Editar reporte" y "Ya apareció".
+ * Si alguien la reportó como encontrada, arriba de todo aparece
+ * "¡Encontraron a …!" con "Ya la recuperé".
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -17,17 +19,25 @@ import { AppHeader } from '@/components/AppHeader';
 import { Avatar } from '@/components/Avatar';
 import { Chip } from '@/components/Chip';
 import { Cargando, EstadoVacio } from '@/components/EstadoVista';
+import { AvisoEncontrada } from '@/components/mascotas/AvisoEncontrada';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { QrIdentificacion } from '@/components/QrIdentificacion';
 import { SectionCard } from '@/components/SectionCard';
 import { useApp } from '@/context/AppContext';
 import { useCerrarReporte } from '@/hooks/useCerrarReporte';
+import { useRecuperarMascota } from '@/hooks/useRecuperarMascota';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import { textoEdad } from '@/utils/etiquetas';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
 import { textoRadio } from '@/utils/mapa';
 import { volver } from '@/utils/navegacion';
-import { buscarMascota, proximoTurno, reporteActivo, ultimaVacuna } from '@/utils/selectores';
+import {
+  buscarMascota,
+  proximoTurno,
+  reporteActivo,
+  reporteEncontrado,
+  ultimaVacuna,
+} from '@/utils/selectores';
 
 /** Diámetro de la foto principal. */
 const FOTO = 128;
@@ -40,6 +50,7 @@ export default function PerfilMascotaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { mascotas, registros, turnos, reportes, cargando, error, recargar } = useApp();
   const { cerrando, pedirCierre } = useCerrarReporte();
+  const { recuperando, pedirRecuperacion } = useRecuperarMascota();
 
   // --- Datos derivados ---
   const mascota = useMemo(() => buscarMascota(mascotas, id), [mascotas, id]);
@@ -53,6 +64,10 @@ export default function PerfilMascotaScreen() {
   );
   const reporte = useMemo(
     () => (mascota ? reporteActivo(reportes, mascota.id) : undefined),
+    [reportes, mascota],
+  );
+  const encontrado = useMemo(
+    () => (mascota ? reporteEncontrado(reportes, mascota.id) : undefined),
     [reportes, mascota],
   );
 
@@ -114,6 +129,14 @@ export default function PerfilMascotaScreen() {
     <View style={styles.screen}>
       <AppHeader backTo="/mascotas" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {encontrado && (
+          <AvisoEncontrada
+            reporte={encontrado}
+            onRecuperada={pedirRecuperacion}
+            recuperando={recuperando}
+          />
+        )}
+
         {/* Hero: foto, nombre, raza y edad */}
         <View style={styles.hero}>
           <View style={styles.fotoSombra}>

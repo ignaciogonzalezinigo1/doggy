@@ -11,6 +11,11 @@
  * Al publicar se crea el reporte "perdido", vibra, se cierra el modal y se
  * muestra el nuevo marker (con su círculo) en Perdidos.
  *
+ * Una mascota tiene un solo reporte de perdido activo: si la elegida ya lo
+ * tiene, en lugar del formulario aparece el aviso de que no se puede reportar
+ * de nuevo, con "Ver o editar el reporte". Si igual el servidor responde 409,
+ * se muestra su mensaje, que es el mismo.
+ *
  * Si llega `reporteId`, la pantalla edita ese reporte en vez de crear uno:
  * arranca con su punto, radio e información, la mascota queda fija
  * y "Guardar cambios" lo actualiza. "Ya apareció" pide confirmación, cierra
@@ -46,8 +51,12 @@ import { useCerrarReporte } from '@/hooks/useCerrarReporte';
 import { Coordenadas, DireccionLegible, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import { CENTRO_CABA, RADIO_POR_DEFECTO, RADIOS_BUSQUEDA, textoRadio } from '@/utils/mapa';
+import type { ReportePerdida } from '@/types/models';
 import { buscarMascota, reporteActivo } from '@/utils/selectores';
 import { LIMITES, limpiarTexto, validarTexto } from '@/utils/validaciones';
+
+/** Aviso si la mascota ya tiene un reporte de perdido activo (el mismo texto que el 409 del servidor). */
+const MENSAJE_YA_REPORTADA = 'Esta mascota ya está reportada como perdida. No se puede reportar de nuevo.';
 
 /**
  * Pantalla del reporte de una mascota propia (alta o edición).
@@ -88,8 +97,8 @@ export default function MiMascotaPerdidaScreen() {
     ? mascotas.find((m) => m.id === editado?.mascotaId)
     : (buscarMascota(mascotas, elegidaId !== null ? String(elegidaId) : mascotaIdParam) ??
       mascotas[0]);
-  // Aviso para no duplicar: ya hay un reporte de "perdido" abierto para esta mascota.
-  const yaReportada = !editando && !!mascota && !!reporteActivo(reportes, mascota.id);
+  // Una mascota tiene un solo reporte de "perdido" activo: si ya lo tiene, no se puede crear otro.
+  const reportada = !editando && mascota ? reporteActivo(reportes, mascota.id) : undefined;
 
   // Cuando llega la posición del GPS, se usa como último lugar donde se la vio.
   useEffect(() => {
@@ -150,7 +159,7 @@ export default function MiMascotaPerdidaScreen() {
 
   /** Crea el reporte con los datos del perfil, vibra y vuelve a Perdidos mostrando el marker. */
   const handlePublicar = async () => {
-    if (!mascota || !infoValida()) return;
+    if (!mascota || reportada || !infoValida()) return;
     const info = limpiarTexto(infoAdicional, true);
     setEnviando(true);
     try {
@@ -177,6 +186,16 @@ export default function MiMascotaPerdidaScreen() {
     } finally {
       setEnviando(false);
     }
+  };
+
+  /**
+   * Cierra el modal y abre en Perdidos el reporte que ya tiene la mascota,
+   * para verlo o editarlo.
+   * @param reporte reporte de perdido activo
+   */
+  const verReporte = (reporte: ReportePerdida) => {
+    if (router.canGoBack()) router.back();
+    router.navigate({ pathname: '/perdidos', params: { reporteId: String(reporte.id) } });
   };
 
   /** Cierra el modal; si no hay a dónde volver (link directo), va a Perdidos. */
@@ -280,82 +299,94 @@ export default function MiMascotaPerdidaScreen() {
 
           <ResumenMascota mascota={mascota} />
 
-          {yaReportada && (
+          {reportada && (
             <View style={styles.aviso} accessibilityLiveRegion="polite">
-              <MaterialIcons name="campaign" size={sizes.iconMd} color={colors.tertiaryContainer} />
-              <Text style={styles.avisoTexto}>
-                {mascota.nombre} ya tiene un reporte de perdida activo. Si publicás otro, van a
-                aparecer los dos en el mapa.
-              </Text>
+              <View style={styles.avisoFila}>
+                <MaterialIcons name="campaign" size={sizes.iconMd} color={colors.tertiaryContainer} />
+                <Text style={styles.avisoTexto}>{MENSAJE_YA_REPORTADA}</Text>
+              </View>
+              <PrimaryButton
+                title="Ver o editar el reporte"
+                icon="visibility"
+                iconLeft
+                variant="outline"
+                size="sm"
+                onPress={() => verReporte(reportada)}
+              />
             </View>
           )}
 
-          {/* Última vez que se la vio, con radio de búsqueda */}
-          <View style={styles.card}>
-            <View style={styles.cardTitulo}>
-              <MaterialIcons name="radar" size={sizes.iconMd} color={colors.primary} />
-              <Text style={styles.cardTituloTexto}>¿Dónde la viste por última vez?</Text>
-            </View>
-            <MapaSelector coords={coords} onChange={handleMoverPin} radioMetros={radioMetros} />
-            <View style={styles.direccion}>
-              <Text style={styles.direccionTexto} numberOfLines={2}>
-                {direccion?.texto ??
-                  (gps.cargando ? 'Buscando tu ubicación…' : 'Mové el pin hasta donde la viste')}
+          {/* Si ya está reportada, no se carga otro reporte: solo queda el aviso de arriba. */}
+          {!reportada && (
+            <>
+            {/* Última vez que se la vio, con radio de búsqueda */}
+            <View style={styles.card}>
+              <View style={styles.cardTitulo}>
+                <MaterialIcons name="radar" size={sizes.iconMd} color={colors.primary} />
+                <Text style={styles.cardTituloTexto}>¿Dónde la viste por última vez?</Text>
+              </View>
+              <MapaSelector coords={coords} onChange={handleMoverPin} radioMetros={radioMetros} />
+              <View style={styles.direccion}>
+                <Text style={styles.direccionTexto} numberOfLines={2}>
+                  {direccion?.texto ??
+                    (gps.cargando ? 'Buscando tu ubicación…' : 'Mové el pin hasta donde la viste')}
+                </Text>
+                <Pressable onPress={usarMiUbicacion} hitSlop={spacing.sm} accessibilityRole="button">
+                  {({ pressed }) => (
+                    <Text style={[styles.link, pressed && styles.linkPressed]}>Usar mi ubicación</Text>
+                  )}
+                </Pressable>
+              </View>
+
+              <Text style={styles.label}>Radio de búsqueda</Text>
+              <View style={styles.chips}>
+                {RADIOS_BUSQUEDA.map((metros) => (
+                  <Chip
+                    key={metros}
+                    label={textoRadio(metros)}
+                    selected={radioMetros === metros}
+                    onPress={() => setRadioMetros(metros)}
+                  />
+                ))}
+              </View>
+              <Text style={styles.ayuda}>
+                Es la zona donde puede estar. Los vecinos la ven como un círculo en el mapa.
               </Text>
-              <Pressable onPress={usarMiUbicacion} hitSlop={spacing.sm} accessibilityRole="button">
-                {({ pressed }) => (
-                  <Text style={[styles.link, pressed && styles.linkPressed]}>Usar mi ubicación</Text>
-                )}
-              </Pressable>
-            </View>
 
-            <Text style={styles.label}>Radio de búsqueda</Text>
-            <View style={styles.chips}>
-              {RADIOS_BUSQUEDA.map((metros) => (
-                <Chip
-                  key={metros}
-                  label={textoRadio(metros)}
-                  selected={radioMetros === metros}
-                  onPress={() => setRadioMetros(metros)}
+              {gps.permiso === 'denegado' && (
+                <PermissionNotice
+                  icon="location-off"
+                  titulo="Sin acceso a tu ubicación"
+                  mensaje="Marcá el punto a mano en el mapa, o habilitá la ubicación."
+                  puedePreguntar={gps.puedePreguntar}
+                  onReintentar={usarMiUbicacion}
+                  onAbrirAjustes={gps.abrirAjustes}
+                  compacto
                 />
-              ))}
+              )}
             </View>
-            <Text style={styles.ayuda}>
-              Es la zona donde puede estar. Los vecinos la ven como un círculo en el mapa.
-            </Text>
 
-            {gps.permiso === 'denegado' && (
-              <PermissionNotice
-                icon="location-off"
-                titulo="Sin acceso a tu ubicación"
-                mensaje="Marcá el punto a mano en el mapa, o habilitá la ubicación."
-                puedePreguntar={gps.puedePreguntar}
-                onReintentar={usarMiUbicacion}
-                onAbrirAjustes={gps.abrirAjustes}
-                compacto
+            {/* Información del día */}
+            <View style={styles.card}>
+              <View style={styles.cardTitulo}>
+                <MaterialIcons name="checkroom" size={sizes.iconMd} color={colors.primary} />
+                <Text style={styles.cardTituloTexto}>Información adicional</Text>
+              </View>
+              <Input
+                label="¿Qué tenía puesto? ¿Algo más para saber?"
+                placeholder="Ej: buzo rojo y arnés negro, sin chapita. Se asusta con las motos."
+                value={infoAdicional}
+                onChangeText={(texto) => {
+                  setInfoAdicional(texto);
+                  setErrorInfo(undefined);
+                }}
+                error={errorInfo}
+                multiline
+                maxLength={LIMITES.infoAdicional}
               />
-            )}
-          </View>
-
-          {/* Información del día */}
-          <View style={styles.card}>
-            <View style={styles.cardTitulo}>
-              <MaterialIcons name="checkroom" size={sizes.iconMd} color={colors.primary} />
-              <Text style={styles.cardTituloTexto}>Información adicional</Text>
             </View>
-            <Input
-              label="¿Qué tenía puesto? ¿Algo más para saber?"
-              placeholder="Ej: buzo rojo y arnés negro, sin chapita. Se asusta con las motos."
-              value={infoAdicional}
-              onChangeText={(texto) => {
-                setInfoAdicional(texto);
-                setErrorInfo(undefined);
-              }}
-              error={errorInfo}
-              multiline
-              maxLength={LIMITES.infoAdicional}
-            />
-          </View>
+            </>
+          )}
 
           {editado ? (
             <>
@@ -377,7 +408,7 @@ export default function MiMascotaPerdidaScreen() {
                 disabled={enviando}
               />
             </>
-          ) : (
+          ) : reportada ? null : (
             <PrimaryButton
               title="Publicar como perdida"
               icon="campaign"
@@ -426,12 +457,15 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   aviso: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.stackSm,
     padding: spacing.md,
     borderRadius: radius.lg,
     backgroundColor: colors.tertiaryContainer10,
+  },
+  avisoFila: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.stackSm,
   },
   avisoTexto: {
     ...typography.bodySm,

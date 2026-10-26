@@ -35,9 +35,13 @@ export type Mascota = {
 
 /**
  * Lo que devuelve el servidor de una mascota buscada por el código de su
- * chapita: solo lo necesario para identificarla, aunque sea de otra familia.
+ * chapita: lo necesario para identificarla y el nombre de su tutor, aunque
+ * sea de otra familia. El teléfono del tutor solo viene si la mascota está
+ * reportada como perdida (o si el usuario está asignado a ella): lo filtra el servidor.
  */
-export type MascotaPublica = Pick<Mascota, 'id' | 'nombre' | 'raza' | 'senas' | 'foto' | 'codigo'>;
+export type MascotaPublica = Pick<Mascota, 'id' | 'nombre' | 'raza' | 'edad' | 'senas' | 'foto' | 'codigo'> & {
+  dueno: { nombre: string; telefono?: string };
+};
 
 export type TipoRegistro = 'vacuna' | 'desparasitacion' | 'otro';
 /**
@@ -108,6 +112,11 @@ export type ReportePerdida = {
   radioMetros?: number;
   /** Datos extra del tutor: ropa que tenía puesta, arnés, cómo reacciona, etc. */
   infoAdicional?: string;
+  /**
+   * Quién encontró a la mascota, para avisarle. Solo viene en los reportes
+   * "encontrado" de una mascota del usuario que publicó otra persona.
+   */
+  contacto?: { nombre: string; telefono: string };
 };
 
 export type TipoCuidador = 'familia' | 'clinica' | 'paseador';
@@ -159,7 +168,7 @@ export type NuevaMascota = Omit<Mascota, 'id' | 'codigo' | 'tutorId'>;
 export type NuevoRegistro = Omit<RegistroSanitario, 'id'>;
 export type NuevoTurno = Omit<Turno, 'id'>;
 /** La app ya no carga etiquetas en los reportes: solo se muestran las que ya tenían. */
-export type NuevoReporte = Omit<ReportePerdida, 'id' | 'autorId' | 'etiquetas'>;
+export type NuevoReporte = Omit<ReportePerdida, 'id' | 'autorId' | 'etiquetas' | 'contacto'>;
 /**
  * Cambios de un reporte publicado (PATCH): lo que no viene no se toca y
  * `infoAdicional: null` la borra (un `undefined` no viaja en el JSON).

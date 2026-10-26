@@ -4,25 +4,41 @@
  * Lista las mascotas del usuario que vienen del contexto global. Tocar una
  * card abre su perfil, mantenerla presionada abre un menú de acciones
  * rápidas (ver `PetCard`) y el FAB mostaza lleva al alta de una mascota nueva.
+ * Arriba de la lista, un aviso "¡Encontraron a …!" por cada mascota que
+ * alguien reportó como encontrada, con "Ya la recuperé".
  */
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Cargando, EstadoVacio } from '@/components/EstadoVista';
 import { Fab } from '@/components/Fab';
+import { AvisoEncontrada } from '@/components/mascotas/AvisoEncontrada';
 import { PetCard } from '@/components/PetCard';
 import { useApp } from '@/context/AppContext';
+import { useRecuperarMascota } from '@/hooks/useRecuperarMascota';
 import { colors, sizes, spacing, typography } from '@/theme';
-import type { Mascota } from '@/types/models';
+import type { Mascota, ReportePerdida } from '@/types/models';
+import { reporteEncontrado } from '@/utils/selectores';
 
 /**
  * Listado de mascotas.
  * @returns la pantalla con el header, la lista y el FAB
  */
 export default function MisMascotasScreen() {
-  const { mascotas, cargando, error, recargar } = useApp();
+  const { mascotas, reportes, cargando, error, recargar } = useApp();
+  const { recuperando, pedirRecuperacion } = useRecuperarMascota();
+
+  // --- Datos derivados ---
+  /** Reportes "encontrado" activos de las mascotas del usuario. */
+  const encontradas = useMemo(
+    () =>
+      mascotas
+        .map((m) => reporteEncontrado(reportes, m.id))
+        .filter((r): r is ReportePerdida => r !== undefined),
+    [mascotas, reportes],
+  );
 
   // --- Handlers ---
   /** Abre el perfil de la mascota tocada. */
@@ -63,7 +79,19 @@ export default function MisMascotasScreen() {
         data={mascotas}
         keyExtractor={(mascota) => String(mascota.id)}
         renderItem={({ item }) => <PetCard mascota={item} onPress={abrirMascota} />}
-        ListHeaderComponent={<Text style={styles.titulo}>Mis Mascotas</Text>}
+        ListHeaderComponent={
+          <View style={styles.encabezado}>
+            {encontradas.map((reporte) => (
+              <AvisoEncontrada
+                key={reporte.id}
+                reporte={reporte}
+                onRecuperada={pedirRecuperacion}
+                recuperando={recuperando}
+              />
+            ))}
+            <Text style={styles.titulo}>Mis Mascotas</Text>
+          </View>
+        }
         ListEmptyComponent={renderVacio}
         ItemSeparatorComponent={Separador}
         contentContainerStyle={styles.lista}
@@ -92,10 +120,13 @@ const styles = StyleSheet.create({
     // Deja lugar para que el FAB no tape la última card.
     paddingBottom: sizes.fab + spacing.stackLg,
   },
+  encabezado: {
+    gap: spacing.stackMd,
+    marginBottom: spacing.stackMd,
+  },
   titulo: {
     ...typography.headlineMd,
     color: colors.onSurface,
-    marginBottom: spacing.stackMd,
   },
   separador: {
     height: spacing.stackMd,
