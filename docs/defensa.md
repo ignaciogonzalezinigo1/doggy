@@ -39,7 +39,7 @@ Porque no se borra: se le pone fecha en `cerradoEn` y queda como historial. `GET
 → `doggy-backend/src/rutas/reportes.ts`, `doggy-backend/prisma/schema.prisma` (`cerradoEn`)
 
 **¿Qué códigos de estado usan?**
-200 GET/PATCH bien · 201 POST creó (devuelve lo creado) · 204 DELETE bien, sin body · 400 datos o id inválidos · 401 sin sesión válida o login incorrecto · 403 con sesión pero sin permiso · 404 no existe · 409 conflicto (email repetido, ya asignado, único dueño, reporte cerrado o duplicado) · 410 código de asignación vencido o usado · 413 foto de más de 5 MB · 500 imprevisto. Todo error viaja como `{ error: "mensaje" }` y la app lo muestra tal cual.
+200 GET/PATCH bien · 201 POST creó (devuelve lo creado) · 204 DELETE bien, sin body · 400 datos o id inválidos · 401 sin sesión válida o login incorrecto · 403 con sesión pero sin permiso · 404 no existe · 409 conflicto (email repetido, ya asignado, único dueño, reporte cerrado o duplicado) · 410 código de asignación ya usado · 413 foto de más de 5 MB · 500 imprevisto. Todo error viaja como `{ error: "mensaje" }` y la app lo muestra tal cual.
 → tabla en `CLAUDE.md`, `doggy-backend/src/lib/errores.ts`
 
 **¿Diferencia entre 401 y 403?**
@@ -138,6 +138,14 @@ Sí, a propósito: la familia puede no saber todavía que se escapó, y como no 
 **¿Quien escanea el QR puede cambiar los datos de la mascota?**
 No. La app los muestra de solo lectura y no los manda, y el servidor, si el reporte trae `mascotaId`, toma el nombre y la raza de la mascota e ignora los del body. Editar la mascota en sí nunca fue posible: el PATCH de una mascota ajena da 403.
 
+**¿Quién ve el contacto de quien encontró a la mascota?**
+Solo las personas asignadas a esa mascota (dueños e invitados). En `GET /api/reportes`, los `encontrado` de una mascota asignada al usuario que publicó otra persona traen `contacto: { nombre, telefono }`; a nadie más se le manda. Así la familia puede llamar o escribir por WhatsApp a quien la encontró, desde "¡Encontraron a …!".
+→ `doggy-backend/src/rutas/reportes.ts` (GET), `doggy/mobile/src/components/mascotas/AvisoEncontrada.tsx`
+
+**¿Por qué el código de asignación es de un solo uso?**
+Porque sirve para sumar a una persona a una mascota: con el primero que lo acepta ya cumplió su función. No vence por tiempo; una vez usado responde 410 ("ya se usó") y el dueño genera otro si hace falta. Marcarlo usado y crear la asignación van en una transacción, así dos personas no pueden usarlo a la vez.
+→ `doggy-backend/src/rutas/invitaciones.ts`
+
 **¿Quién ve el teléfono del dueño al escanear el QR?**
 Solo si la mascota tiene un reporte de perdida activo (o si quien escanea está asignado a ella). Lo filtra el servidor en `aMascotaPublica`: si lo ocultara solo la app, igual viajaría en la respuesta y cualquiera podría leerlo llamando a la API.
 → `doggy-backend/src/rutas/mascotas.ts`, `doggy-backend/src/respuestas.ts` (`aMascotaPublica`)
@@ -201,6 +209,14 @@ Con el tamaño real de la foto ajustada a la pantalla (`onLoad`) y el zoom: se p
 Porque no deja poner `failOffsetY`: se activaba con 10 px hacia la derecha y un scroll vertical con un poco de desvío le robaba el gesto a la lista. El `usePanGesture` propio se activa con 20 px en horizontal y falla si antes se movieron 10 px en vertical. Además, con una sola vacuna el registro se muestra como "próximo refuerzo" en otra card, que antes no era deslizable; ahora todas lo son.
 → `mobile/src/components/DeslizarParaBorrar.tsx`, `mobile/src/components/carnet/ProximoRefuerzoCard.tsx`
 
+**¿Cómo funciona el pull-to-refresh?**
+En las pantallas con datos compartidos, deslizar hacia abajo llama a `refrescar` del `AppContext`, que vuelve a pedir todo con los mismos services que la carga inicial (en paralelo). No pone el estado de carga, así los datos siguen a la vista; si falla, avisa y conserva lo que había. En el mapa de Perdidos, que no tiene scroll, hay un botón "Actualizar".
+→ `mobile/src/hooks/useRefresco.tsx`, `mobile/src/context/AppContext.tsx`
+
+**¿Qué hicieron por el rendimiento?**
+Primero se midió. Lo que más pesa es el modo desarrollo de Expo Go (JavaScript sin minificar y verificaciones de desarrollo): una build de producción es mucho más rápida. En el código: `expo-image` para las fotos (caché y decodificado al tamaño en pantalla, en vez de fotos de 800 px en avatares de 40 px), un contexto aparte para las acciones (`useAcciones`, que no cambia, así las cards que solo borran no se redibujan con cada dato) y `memo` en las cards de las listas. La carga inicial ya era en paralelo y los endpoints responden en 3 a 12 ms.
+→ `mobile/src/components/Avatar.tsx`, `mobile/src/context/AppContext.tsx`
+
 **¿Por qué el visor tiene su propio `GestureHandlerRootView`?**
 Porque el `Modal` se dibuja fuera de la raíz de la app, y sin una raíz propia los gestos no responden en Android.
 → `mobile/src/components/VisorFoto.tsx`, `mobile/app/_layout.tsx`
@@ -248,7 +264,7 @@ SQLite no hace cumplir los enums, así que se guardan como texto y Express los v
 → `doggy-backend/src/dominio.ts`
 
 **¿Por qué las etiquetas van en otra tabla si la app recibe un array?**
-SQLite no guarda listas. La ruta las convierte a `etiquetas: string[]` antes de responder, para respetar el tipo de la app.
+SQLite no guarda listas. La ruta las convierte a `etiquetas: string[]` antes de responder, para respetar el tipo de la app. Hoy la app ya no carga etiquetas en los reportes nuevos; solo muestra las que tenían.
 → `doggy-backend/src/respuestas.ts` (`aReporte`)
 
 **¿Cómo prueban la API?**

@@ -221,7 +221,8 @@ Tabs
 - **Bottom Tabs** (`app/(tabs)/_layout.tsx`): Mascotas, Perdidos, Agenda y Perfil, con una barra propia que marca la tab activa con una píldora.
 - **Stack interno de Mascotas** (`app/(tabs)/mascotas/_layout.tsx`): listado, alta, perfil (`[id]`), edición (`[id]/editar`) y carnet (`[id]/carnet`), con la barra de tabs visible.
 - **Sesión:** ver [Sesión](#sesión) en Arquitectura.
-- Lo que todavía no existe muestra un aviso de "Disponible próximamente"; no hay botones sin respuesta (ver [Pendientes a futuro](#pendientes-a-futuro)).
+- No hay botones sin respuesta: lo que todavía no existe no aparece en la app (ver [Pendientes a futuro](#pendientes-a-futuro)).
+- **Pull-to-refresh:** en Mis Mascotas, Perdidos (en la lista; en el mapa, el botón "Actualizar"), el perfil y el carnet de la mascota, la Agenda y el Perfil, deslizar hacia abajo vuelve a pedir los datos al servidor, por si otro usuario cambió algo. Si falla, avisa y deja los datos que había (`useRefresco` y `refrescar` del `AppContext`).
 
 ### Detalle por pantalla
 
@@ -411,12 +412,15 @@ Todos los formularios validan en local antes de guardar, con las reglas centrali
 - `Badge`: etiqueta de estado ("Placa & Collar", "Aplicada", "URGENTE").
 - `SectionCard`: card de sección con decoración, acción y pie con link.
 - `QrIdentificacion`: card con el QR de la mascota, "Descargar QR" y "Compartir QR"; la imagen (`FichaQr`) se captura con `react-native-view-shot` y la manejan `src/hooks/useQrImagen.ts` (`expo-sharing` y `expo-media-library`).
-- `InputTelefono`: el campo de teléfono del registro y del perfil.
+- `InputTelefono`: el campo de teléfono del registro y del perfil, con la casilla "Es un teléfono fijo".
+- `Casilla`: casilla de verificación con texto (área táctil de 44 px).
+- `Avatar` y las miniaturas usan `expo-image` (caché en memoria y disco, y decodificado al tamaño en pantalla).
 - `SegmentedControl`: pestañas con subrayado o en píldora (Mapa / Lista).
 - `FormModal`: hoja modal que sube desde abajo para formularios cortos.
 - `mascotas/MascotaForm`: formulario de mascota (foto, nombre, raza, fecha de nacimiento y señas) compartido por el alta y la edición.
 - `carnet/RegistroCard`, `carnet/ProximoRefuerzoCard`, `carnet/RegistroForm`, `carnet/FotoEtiqueta`, `carnet/VerEtiqueta`: piezas del carnet sanitario. Las cards tienen todas la misma estructura (ícono del tipo, nombre, badge "Aplicada", lápiz para editar y filas fijas de aplicación, profesional y refuerzo, más la de etiqueta en las vacunas) y `RegistroForm` sirve tanto para el alta como para corregir un registro. `FotoEtiqueta` es el campo opcional de la foto de la etiqueta (cámara o galería) y `VerEtiqueta`, el link que la abre en grande.
 - `perdidos/DetalleReporte`: hoja con el detalle completo de un reporte (usa `FormModal`) y, si la mascota es del usuario, las acciones "Editar reporte" y "Ya apareció".
+- `src/hooks/useRefresco.tsx`: el `RefreshControl` del pull-to-refresh, con los colores del tema.
 - `src/hooks/useCerrarReporte.ts`: confirmación y cierre de un reporte cuando la mascota aparece, compartido por el detalle en Perdidos, el perfil de la mascota y la edición del reporte.
 - `perdidos/MapaReportes`: mapa con markers y método `centrar` por ref (con una versión `.web.tsx` que muestra un aviso, porque react-native-maps no funciona en el navegador).
 - `perdidos/ReporteCard`, `perdidos/ReporteMarker`: card y pin de cada reporte.
@@ -465,6 +469,15 @@ doggy/
         └── config.ts        URL de la API (EXPO_PUBLIC_API_URL)
 ```
 
+## Rendimiento
+
+Lo que se midió y lo que se cambió (de mayor a menor impacto):
+
+- **El modo desarrollo de Expo Go.** Es lo que más se nota: el JavaScript va sin minificar y con las verificaciones de desarrollo (avisos de props, LogBox, recarga en caliente), y cada pantalla nueva se compila al abrirla. Una build de producción (`eas build` o `npx expo run:* --variant release`) es bastante más rápida con el mismo código.
+- **Imágenes.** Las fotos de la demo son JPG de hasta 800 px y se mostraban con el `Image` de React Native en avatares de 40 a 96 px. `Avatar`, `ReporteCard` y las miniaturas de la etiqueta pasaron a `expo-image`, que las guarda en caché (una foto del servidor no se vuelve a bajar) y las decodifica al tamaño en pantalla. El visor sigue con el `Image` de React Native porque necesita el tamaño original de la foto.
+- **Re-renders.** Cualquier cambio del `AppContext` re-renderizaba a todos los que lo usan. Ahora las acciones van en un contexto aparte (`useAcciones`), cuyo valor no cambia: las cards que solo borran no se redibujan cuando cambia otro dato. `PetCard`, `ReporteCard`, `RegistroCard` y `TurnoCard` van con `memo`, y el carrusel de Perdidos les pasa un estilo estable.
+- **Lo que ya estaba bien:** la carga inicial pide los 6 recursos en paralelo (`Promise.all`), ninguna pantalla vuelve a pedir al enfocarse, los selectores costosos (filtros de Perdidos, turnos por día) están en `useMemo`, los pines del mapa solo se redibujan al seleccionarlos, no hay `console.log` en renders ni gestos, y los endpoints de la carga inicial responden en 3 a 12 ms (medido con `curl` sobre la base del seed, sin N+1).
+
 ## Errores comunes
 
 | Síntoma | Causa probable | Cómo se resuelve |
@@ -474,13 +487,13 @@ doggy/
 | Lo mismo, en una red de casa | El **firewall** de la PC bloquea las conexiones entrantes al puerto 3000 | macOS: aceptá "permitir conexiones entrantes" para `node` (o habilitalo en Ajustes → Red → Firewall). Windows: permití `node` en redes **privadas** y marcá la red Wi-Fi como privada. |
 | Expo Go dice que el proyecto es incompatible con su versión | **Expo Go para otro SDK**: el proyecto usa SDK 58 | Actualizá Expo Go desde la tienda a una versión que soporte SDK 58. En Android también se puede instalar la versión exacta desde [expo.dev/go](https://expo.dev/go). No hace falta cambiar nada del proyecto. |
 | `npm run dev` termina con "El puerto 3000 ya está en uso", o la app ve datos o reglas viejas | El **puerto 3000 está ocupado**, casi siempre por otro `npm run dev` que quedó abierto en otra terminal (la app le habla a ese) | Cerrá el otro proceso (`lsof -i :3000` en macOS, `netstat -ano \| findstr :3000` en Windows) o usá otro puerto: `PORT=3001` en el `.env` del backend y el mismo puerto en `EXPO_PUBLIC_API_URL`. |
-| `Error: Falta DATABASE_URL en el .env (copiá .env.example).` al hacer `npm run dev`, o `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL` en `npm install` o en un script de Prisma | **Falta el `.env` del backend** | En `doggy-backend`: `cp .env.example .env` y después `npx prisma generate` (o `npm install` de nuevo). |
+| `Error: Falta DATABASE_URL en el .env (copiá .env.example).` al hacer `npm run dev`, o `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL` en `npm ci` o en un script de Prisma | **Falta el `.env` del backend** | En `doggy-backend`: `cp .env.example .env` y después `npx prisma generate` (o `npm ci` de nuevo). |
 | `Cannot find module '../generated/prisma/client'` (o parecido) al levantar la API | **Prisma Client sin generar**: el cliente vive en `src/generated/`, que no se versiona, y en Prisma 7 `db push` no lo genera solo | En `doggy-backend`: `npx prisma generate`. Si además cambió el schema, `npm run db:reset` (regenera el cliente y recarga los datos). |
 | La app vuelve al login con "Tu sesión venció" | El token ya no existe en el servidor: se reseteó la base (`db:reset` borra las sesiones) o pasaron 30 días | Volvé a entrar. Es el comportamiento esperado. |
 
 ## Pendientes a futuro
 
-Hoy estas acciones muestran un aviso de "Disponible próximamente" (ningún botón queda muerto):
+Ideas que todavía no están en la app (no tienen botones):
 
 - **Notificaciones push:** recordatorios de turnos y de refuerzos de vacunas, y un aviso a los vecinos cuando se publica un perro perdido cerca. Con `expo-notifications`; las push remotas necesitan un development build, no alcanza Expo Go.
 - **Código único de vacuna (SENASA):** cada aplicación del carnet llevaría el código único de la vacuna, validado contra una API de SENASA (o la fuente oficial que corresponda), para que el carnet sirva como constancia. Queda marcado con un `TODO` en `RegistroSanitario` (`src/types/models.ts`).
