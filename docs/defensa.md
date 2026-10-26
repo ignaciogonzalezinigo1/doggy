@@ -171,7 +171,7 @@ El servidor borra el archivo si ninguna otra fila lo usa (`borrarFotoSiHuerfana`
 ## Gestos
 
 **¿Qué gestos hicieron?**
-Visor de fotos (pan, pinch, rotación, doble tap y arrastrar para cerrar), deslizar para borrar turnos y registros, mantener presionada una mascota para acciones rápidas y fling para cambiar de mes. Todos tienen una alternativa tocable.
+Visor de fotos (pinch, pan con zoom, doble toque y arrastrar para cerrar), deslizar para borrar turnos y registros, mantener presionada una mascota para acciones rápidas y fling para cambiar de mes. Todos tienen una alternativa tocable.
 → `mobile/src/components/VisorFoto.tsx`, `DeslizarParaBorrar.tsx`, `PetCard.tsx`, `agenda/Calendario.tsx`
 
 **¿Por qué los gestos corren en el hilo de UI?**
@@ -186,8 +186,16 @@ Solo cuando el gesto se activa o termina (`onActivate`, `onDeactivate`), con `sc
 Porque no cambian el layout: no obligan a recalcular el tamaño y la posición de los demás elementos, y se pueden componer directo en la GPU.
 
 **¿Cómo combinan varios gestos?**
-En el visor, `useExclusiveGestures(dobleTap, useSimultaneousGestures(pan, pinch, rotacion))`: mover, hacer zoom y girar van a la vez, y el doble tap tiene prioridad. En la card de mascota, `useExclusiveGestures(mantener, tocar)`: el tap espera a que falle el long press. En el calendario, `useCompetingGestures` entre dos flings: gana el primero que se activa.
+En el visor, `useCompetingGestures(dobleToque, useSimultaneousGestures(pinch, pan))`: hacer zoom y mover van a la vez, y el doble toque compite con ellos (gana el primero que se activa). Un doble toque quieto no activa ni el arrastre (necesita moverse 10 px) ni el pellizco (necesita dos dedos), así que gana; si se apoyan dos dedos, gana el pellizco. Con `useExclusiveGestures`, el arrastre esperaba a que fallara el doble toque. En la card de mascota, `useExclusiveGestures(mantener, tocar)`: el tap espera a que falle el long press. En el calendario, `useCompetingGestures` entre dos flings: gana el primero que se activa.
 → `mobile/src/components/VisorFoto.tsx`, `PetCard.tsx`, `agenda/Calendario.tsx`
+
+**¿Cómo se limita el arrastre del visor?**
+Con el tamaño real de la foto ajustada a la pantalla (`onLoad`) y el zoom: se puede correr hasta `(tamaño × zoom − pantalla) / 2` para cada lado. Pasado el borde se mueve con resistencia (efecto goma) y al soltar vuelve con un resorte. Sin zoom no se mueve: deslizar hacia abajo cierra.
+→ `mobile/src/components/VisorFoto.tsx` (`limite`, `acotar`)
+
+**¿Por qué deslizar para borrar no usa `ReanimatedSwipeable`?**
+Porque no deja poner `failOffsetY`: se activaba con 10 px hacia la derecha y un scroll vertical con un poco de desvío le robaba el gesto a la lista. El `usePanGesture` propio se activa con 20 px en horizontal y falla si antes se movieron 10 px en vertical. Además, con una sola vacuna el registro se muestra como "próximo refuerzo" en otra card, que antes no era deslizable; ahora todas lo son.
+→ `mobile/src/components/DeslizarParaBorrar.tsx`, `mobile/src/components/carnet/ProximoRefuerzoCard.tsx`
 
 **¿Por qué el visor tiene su propio `GestureHandlerRootView`?**
 Porque el `Modal` se dibuja fuera de la raíz de la app, y sin una raíz propia los gestos no responden en Android.

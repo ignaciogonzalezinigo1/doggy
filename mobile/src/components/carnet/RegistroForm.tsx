@@ -52,7 +52,7 @@ type Errores = Partial<Record<Campo, string>>;
 const EJEMPLOS: Record<TipoRegistro, string> = {
   vacuna: 'Ej: Antirrábica',
   desparasitacion: 'Ej: Pipeta antipulgas',
-  otro: 'Ej: Análisis de sangre',
+  otro: 'Ej: consulta, castración, análisis de sangre, medicación…',
 };
 
 /**
@@ -99,7 +99,7 @@ export function RegistroForm({ mascotaId, tipoInicial, registro, onGuardado, onB
   /** Valida todos los campos y devuelve los errores encontrados. */
   const validar = (): Errores => ({
     nombre: validarTexto(nombre, {
-      requerido: 'Ingresá el nombre del registro.',
+      requerido: tipo === 'otro' ? 'Describí qué se hizo.' : 'Ingresá el nombre del registro.',
       min: 3,
       max: LIMITES.nombreRegistro,
       formato: 'texto',
@@ -176,7 +176,8 @@ export function RegistroForm({ mascotaId, tipoInicial, registro, onGuardado, onB
       </View>
 
       <Input
-        label="Nombre"
+        // En "Otro" el nombre es la descripción: es lo que se ve como título en el carnet.
+        label={tipo === 'otro' ? 'Descripción' : 'Nombre'}
         icon={textos.icono}
         placeholder={EJEMPLOS[tipo]}
         value={nombre}

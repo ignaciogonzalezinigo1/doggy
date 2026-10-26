@@ -1,38 +1,43 @@
 /**
  * Envoltorio para deslizar una card hacia la izquierda y mostrar el botón
- * "Eliminar". Lo usan `TurnoCard` y `RegistroCard`.
+ * "Eliminar". Lo usan `TurnoCard`, `RegistroCard` y `ProximoRefuerzoCard`.
  *
- * Gestos (react-native-gesture-handler 3 + react-native-reanimated 4):
- * - Usa `ReanimatedSwipeable`, que en gesture-handler 3.3 sigue siendo el
- *   componente recomendado y ya está hecho con la API nueva de hooks
- *   (`usePanGesture` y `scheduleOnRN` por dentro).
- * - Para que no se dispare sin querer: `friction` 2 (la card se mueve la
- *   mitad que el dedo), recién se abre si se suelta pasado el 60 % del botón
- *   (`rightThreshold`) y el arrastre solo arranca después de 20 px en
- *   horizontal (`dragOffsetFromRight`). Así un scroll vertical de la lista
- *   nunca lo activa.
+ * Gestos (react-native-gesture-handler 3 + react-native-reanimated 4, API de hooks):
+ * - Es un `usePanGesture` propio y no `ReanimatedSwipeable`, porque el
+ *   Swipeable no deja configurar `failOffsetY`: se activaba con 10 px hacia
+ *   la derecha (aunque cerrado no hace nada) y un scroll vertical con un poco
+ *   de desvío horizontal le robaba el gesto a la lista.
+ * - Se activa recién después de 20 px en horizontal (`activeOffsetX`) y falla
+ *   si antes se movió 10 px en vertical (`failOffsetY`): así el scroll
+ *   vertical de la lista siempre gana cuando el dedo va hacia arriba o abajo.
+ * - La card se mueve la mitad que el dedo (`FRICCION`) y nunca más que el
+ *   ancho del botón. Al soltar queda abierta si se descubrió el 60 % del
+ *   botón o si se tiró rápido hacia la izquierda; si no, vuelve a su lugar.
+ * - Funciona igual con una card sola o con muchas: no depende de que la
+ *   lista scrollee ni de su altura.
  * - Deslizar no borra: deja a la vista el botón, que pide confirmación.
- * - El botón aparece con `opacity` y `scale` según el progreso del swipe, en
- *   el hilo de UI. Al cruzar el umbral vibra una vez (`expo-haptics`, el
- *   motor de vibración del celular, que no pide permiso): con
- *   `useAnimatedReaction` se vuelve al hilo de JS solo en el cruce, no en
- *   cada cuadro.
+ *   Con la card abierta, tocarla la cierra.
+ * - El botón aparece con `opacity` y `scale` según el progreso, en el hilo de
+ *   UI. Al cruzar el umbral vibra una vez (`expo-haptics`, que no pide
+ *   permiso): con `useAnimatedReaction` se vuelve al hilo de JS solo en el
+ *   cruce, no en cada cuadro.
  *
  * Alternativa tocable: el botón "Eliminar" de los formularios de edición.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { type ReactNode, useCallback, useRef } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import ReanimatedSwipeable, {
-  type SwipeableMethods,
-} from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
   interpolate,
   type SharedValue,
   useAnimatedReaction,
   useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -44,10 +49,16 @@ const ANCHO_ACCION = 96;
 const FRICCION = 2;
 /** Fracción del botón que hay que descubrir para que quede abierto al soltar. */
 const UMBRAL = 0.6;
-/** Distancia horizontal (px) antes de que el swipe le gane al scroll. */
+/** Distancia horizontal (px) antes de que el swipe se active. */
 const ARRANQUE = 20;
+/** Distancia vertical (px) que, si llega primero, cancela el swipe y deja scrollear. */
+const FALLA_VERTICAL = 10;
+/** Velocidad (px/s) de un tirón que abre o cierra aunque no se haya llegado al umbral. */
+const VELOCIDAD_TIRON = 800;
 /** Escala del botón cuando recién empieza a aparecer. */
 const ESCALA_INICIAL = 0.8;
+/** Resorte para abrir y cerrar, sin rebote. */
+const RESORTE = { damping: 22, stiffness: 220, overshootClamping: true };
 
 type Props = {
   children: ReactNode;
@@ -71,32 +82,64 @@ function vibrarUmbral() {
  * @returns la card envuelta
  */
 export function DeslizarParaBorrar({ children, etiqueta, onEliminar }: Props) {
-  const swipeRef = useRef<SwipeableMethods>(null);
+  /** Corrimiento de la card: 0 cerrada, -ANCHO_ACCION abierta. */
+  const x = useSharedValue(0);
+  const inicio = useSharedValue(0);
+  /** Solo para mostrar la capa que cierra al tocar; el gesto usa `x`. */
+  const [abierta, setAbierta] = useState(false);
+  /** 0 con la card cerrada, 1 con el botón entero a la vista. */
+  const progreso = useDerivedValue(() => Math.min(1, -x.get() / ANCHO_ACCION));
 
   /** Vuelve la card a su lugar. */
-  const cerrar = useCallback(() => swipeRef.current?.close(), []);
+  const cerrar = useCallback(() => {
+    x.set(withSpring(0, RESORTE));
+    setAbierta(false);
+  }, [x]);
+
+  const pan = usePanGesture({
+    activeOffsetX: [-ARRANQUE, ARRANQUE],
+    failOffsetY: [-FALLA_VERTICAL, FALLA_VERTICAL],
+    onBegin: () => {
+      inicio.set(x.get());
+    },
+    onUpdate: (e) => {
+      const nuevo = inicio.get() + e.translationX / FRICCION;
+      x.set(Math.min(0, Math.max(-ANCHO_ACCION, nuevo)));
+    },
+    onDeactivate: (e) => {
+      const tironIzquierda = e.velocityX < -VELOCIDAD_TIRON;
+      const tironDerecha = e.velocityX > VELOCIDAD_TIRON;
+      const abrir = tironIzquierda || (!tironDerecha && -x.get() >= ANCHO_ACCION * UMBRAL);
+      x.set(withSpring(abrir ? -ANCHO_ACCION : 0, RESORTE));
+      scheduleOnRN(setAbierta, abrir);
+    },
+  });
+
+  const estiloCard = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
 
   // --- Render ---
   return (
-    // La sombra va afuera: el Swipeable recorta lo que sobresale (overflow hidden).
+    // La sombra va afuera: el contenedor recorta lo que sobresale (overflow hidden).
     <View style={styles.sombra}>
-      <ReanimatedSwipeable
-        ref={swipeRef}
-        friction={FRICCION}
-        rightThreshold={ANCHO_ACCION * UMBRAL}
-        overshootRight={false}
-        dragOffsetFromRight={-ARRANQUE}
-        containerStyle={styles.contenedor}
-        renderRightActions={(progreso) => (
-          <AccionEliminar
-            progreso={progreso}
-            etiqueta={etiqueta}
-            onPress={() => onEliminar(cerrar)}
-          />
-        )}
-      >
-        {children}
-      </ReanimatedSwipeable>
+      <View style={styles.contenedor}>
+        <View style={styles.fondoAccion}>
+          <AccionEliminar progreso={progreso} etiqueta={etiqueta} onPress={() => onEliminar(cerrar)} />
+        </View>
+        <GestureDetector gesture={pan}>
+          <Animated.View style={[styles.card, estiloCard]}>
+            {children}
+            {/* Con la card abierta, tocarla la cierra (y no abre lo que tenga adentro). */}
+            {abierta && (
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={cerrar}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar opciones"
+              />
+            )}
+          </Animated.View>
+        </GestureDetector>
+      </View>
     </View>
   );
 }
@@ -155,13 +198,26 @@ const styles = StyleSheet.create({
   },
   contenedor: {
     borderRadius: radius.lg,
+    overflow: 'hidden',
   },
-  accion: {
+  fondoAccion: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
     width: ANCHO_ACCION,
-    alignItems: 'center',
-    justifyContent: 'center',
     // Mismo par de colores que la variante `danger` de PrimaryButton.
     backgroundColor: colors.errorContainer,
+  },
+  card: {
+    // Fondo opaco: tapa el botón mientras la card está cerrada.
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radius.lg,
+  },
+  accion: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   accionPressed: {
     opacity: 0.7,

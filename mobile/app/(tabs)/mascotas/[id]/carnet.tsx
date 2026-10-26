@@ -11,7 +11,9 @@
  */
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+// La FlatList de gesture-handler: el scroll participa de los gestos, así el swipe de las cards y el scroll se coordinan.
+import { FlatList } from 'react-native-gesture-handler';
 
 import { Avatar } from '@/components/Avatar';
 import { ProximoRefuerzoCard } from '@/components/carnet/ProximoRefuerzoCard';

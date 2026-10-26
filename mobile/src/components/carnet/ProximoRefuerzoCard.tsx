@@ -7,9 +7,12 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
+import { useEliminarRegistro } from '@/hooks/useEliminarRegistro';
+import { colors, radius, sizes, spacing, typography } from '@/theme';
 import type { RegistroSanitario } from '@/types/models';
+import { TIPOS_REGISTRO } from '@/utils/etiquetas';
 import { formatearFecha } from '@/utils/fechas';
+import { DeslizarParaBorrar } from '../DeslizarParaBorrar';
 import { IconButton } from '../IconButton';
 import { VerEtiqueta } from './VerEtiqueta';
 
@@ -29,28 +32,33 @@ type Props = {
  * @returns la card, o nada si el registro no tiene próxima dosis
  */
 export function ProximoRefuerzoCard({ registro, titulo = 'Próximo refuerzo', onEditar }: Props) {
+  const handleEliminar = useEliminarRegistro(registro);
+  const tipo = TIPOS_REGISTRO.find((t) => t.valor === registro.tipo) ?? TIPOS_REGISTRO[0];
   if (!registro.proximaDosis) return null;
 
+  // Deslizable como las del historial: si es el único registro, es la única card que hay.
   return (
-    <View style={styles.card} accessibilityRole="summary">
-      <View style={styles.icono}>
-        <MaterialIcons name="vaccines" size={sizes.iconMd} color={colors.tertiaryContainer} />
-      </View>
-      <View style={styles.textos}>
-        <Text style={styles.label}>{titulo.toUpperCase()}</Text>
-        <Text style={styles.nombre}>{registro.nombre}</Text>
-        <View style={styles.fecha}>
-          <MaterialIcons name="calendar-today" size={sizes.iconSm} color={colors.onTertiaryFixedVariant} />
-          <Text style={styles.fechaTexto}>{formatearFecha(registro.proximaDosis)}</Text>
+    <DeslizarParaBorrar etiqueta={`Eliminar ${registro.nombre}`} onEliminar={handleEliminar}>
+      <View style={styles.card} accessibilityRole="summary">
+        <View style={styles.icono}>
+          <MaterialIcons name={tipo.icono} size={sizes.iconMd} color={colors.tertiaryContainer} />
         </View>
-        <VerEtiqueta registro={registro} color={colors.tertiaryContainer} />
+        <View style={styles.textos}>
+          <Text style={styles.label}>{titulo.toUpperCase()}</Text>
+          <Text style={styles.nombre}>{registro.nombre}</Text>
+          <View style={styles.fecha}>
+            <MaterialIcons name="calendar-today" size={sizes.iconSm} color={colors.onTertiaryFixedVariant} />
+            <Text style={styles.fechaTexto}>{formatearFecha(registro.proximaDosis)}</Text>
+          </View>
+          <VerEtiqueta registro={registro} color={colors.tertiaryContainer} />
+        </View>
+        <IconButton
+          icon="edit"
+          label={`Editar ${registro.nombre}`}
+          onPress={() => onEditar(registro)}
+        />
       </View>
-      <IconButton
-        icon="edit"
-        label={`Editar ${registro.nombre}`}
-        onPress={() => onEditar(registro)}
-      />
-    </View>
+    </DeslizarParaBorrar>
   );
 }
 
@@ -63,7 +71,6 @@ const styles = StyleSheet.create({
     padding: spacing.containerMargin,
     borderRadius: radius.lg,
     backgroundColor: colors.tertiaryFixedDim,
-    ...shadows.level1,
   },
   icono: {
     width: sizes.avatarSm,

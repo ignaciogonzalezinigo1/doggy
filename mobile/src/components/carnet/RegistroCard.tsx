@@ -18,8 +18,7 @@ import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { useApp } from '@/context/AppContext';
-import { useConfirmarBorrado } from '@/hooks/useConfirmarBorrado';
+import { useEliminarRegistro } from '@/hooks/useEliminarRegistro';
 import { colors, radius, sizes, spacing, typography } from '@/theme';
 import type { RegistroSanitario } from '@/types/models';
 import { TIPOS_REGISTRO } from '@/utils/etiquetas';
@@ -57,22 +56,7 @@ function esVeterinario(profesional: string): boolean {
  */
 export function RegistroCard({ registro, onEditar }: Props) {
   const tipo = TIPOS_REGISTRO.find((t) => t.valor === registro.tipo) ?? TIPOS_REGISTRO[0];
-  const { borrarRegistro } = useApp();
-  const { pedirBorrado } = useConfirmarBorrado();
-
-  // --- Handlers ---
-  /**
-   * Confirma y borra el registro; si se cancela o falla, la card vuelve a su lugar.
-   * @param cerrar cierra el swipe
-   */
-  const handleEliminar = (cerrar: () => void) => {
-    pedirBorrado({
-      titulo: `¿Eliminar ${registro.nombre}?`,
-      mensaje: `Se borra la aplicación del ${formatearFecha(registro.fecha)} del carnet. No se puede deshacer.`,
-      borrar: () => borrarRegistro(registro.id),
-      onDescartado: cerrar,
-    });
-  };
+  const handleEliminar = useEliminarRegistro(registro);
 
   // --- Render ---
   return (

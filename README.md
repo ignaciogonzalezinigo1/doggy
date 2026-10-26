@@ -65,8 +65,8 @@ doggy-workspace/
 
 ```bash
 cd doggy-backend
-cp .env.example .env   # antes de npm install: el postinstall lo necesita
-npm install            # también genera el cliente de Prisma
+cp .env.example .env   # antes de npm ci: el postinstall lo necesita
+npm ci                 # también genera el cliente de Prisma
 npm run db:reset       # crea dev.db con el schema y carga los datos de ejemplo
 npm run dev            # API en http://localhost:3000
 ```
@@ -77,9 +77,11 @@ Para chequear que anda, abrí `http://localhost:3000/api/health` en el navegador
 
 ```bash
 cd doggy/mobile
-npm install
+npm ci
 cp .env.example .env
 ```
+
+Se usa `npm ci` y no `npm install` porque instala exactamente las versiones del `package-lock.json` sin reescribirlo: todos tienen las mismas dependencias y no aparecen cambios de lockfile por la versión de npm de cada PC. Después de cada pull que cambie dependencias, otra vez `npm ci`.
 
 Editá `mobile/.env` con la **IP local de la PC** donde corre el backend. No sirve `localhost`: en el celular, `localhost` es el propio celular.
 
@@ -224,7 +226,7 @@ Tabs
 3. **Mis Mascotas**: listado de mascotas con foto, nombre y raza. Tocar una card abre su perfil, el botón "+" abre el alta y el avatar del header lleva a Perfil. Si alguien reportó como encontrada a una de las mascotas, arriba de la lista aparece "¡Encontraron a {nombre}!" (ver el punto 8).
 4. **Agregar mascota**: foto (al tocarla se elige entre sacarla en el momento con la cámara o elegirla de la galería), nombre, raza, fecha de nacimiento (dd/mm/aaaa, no futura ni de hace más de 30 años) y señas particulares. Al guardar se genera su ID único `DOGGY-XXXX-NOMBRE` y vuelve al listado, donde ya aparece.
 5. **Perfil de la mascota**: foto, raza y edad (calculada con la fecha de nacimiento: "3 años", "5 meses" o "Menos de 1 mes"); botón "Editar mascota"; código QR real generado con el ID único (para grabar en la placa del collar), con "Descargar QR" (guarda en la galería un PNG cuadrado con fondo blanco, el nombre arriba, el QR grande y "Escaneame con Doggy" abajo, para imprimir en la chapita; si no se puede guardar, ofrece la hoja de compartir) y "Compartir QR" (comparte esa misma imagen como archivo); señas particulares; resumen del carnet sanitario con la última vacuna ("Ver historial completo" abre el carnet); próximo turno ("Ir a la Agenda de Turnos" cambia a la tab Agenda) y "Reportar como perdida", que abre "Se perdió mi mascota" con esa mascota ya elegida. Si la mascota ya tiene un reporte de perdida activo, en lugar de ese botón aparece el aviso "Reportada como perdida" (desde cuándo, zona y radio de búsqueda) con "Editar reporte" y "Ya apareció". Si alguien la reportó como encontrada, arriba de todo aparece "¡Encontraron a {nombre}!" con "Ya la recuperé". "Editar mascota" abre el mismo formulario del alta con los datos precargados (foto, nombre, raza, edad y señas); al guardar vuelve al perfil ya actualizado. El ID único no cambia aunque cambie el nombre, para que la placa ya grabada siga funcionando.
-6. **Carnet Sanitario**: pestañas Vacunas / Desparasitación / Otros que filtran los registros, card destacada con el próximo refuerzo e historial de aplicaciones (todas con el badge "Aplicada") con fecha, profesional y, si tiene, fecha de refuerzo. En el carnet solo se cargan aplicaciones ya hechas: no hay registros pendientes. "Agregar Registro" abre un formulario (tipo, nombre, fecha de aplicación con máscara dd/mm/aaaa, que arranca con la fecha de hoy, veterinario y, opcional, la fecha del próximo refuerzo; en las vacunas, también opcional, la foto de la etiqueta) que valida que la aplicación no tenga fecha futura y que el refuerzo sea posterior a ella. La card de próximo refuerzo muestra el más cercano a futuro, tomando solo la última aplicación de cada vacuna o producto. Cada card (incluida la del próximo refuerzo) tiene un lápiz que abre el mismo formulario con los datos cargados para corregir un registro mal cargado; si se cambia el tipo, el carnet salta a esa pestaña. **Foto de la etiqueta:** al cargar o corregir una vacuna se puede sumar la foto del sticker que el veterinario pega en la libreta (marca, lote y vencimiento), como constancia. Al tocar el recuadro se elige entre sacarla en el momento o elegirla de la galería, con recorte apaisado; con la foto cargada se ve la vista previa (tocándola se abre grande) y los botones "Cambiar" y "Quitar". En la pestaña Vacunas cada card suma la fila "Etiqueta" con el link "Ver etiqueta" (o "—"), y la card del próximo refuerzo también muestra el link.
+6. **Carnet Sanitario**: pestañas Vacunas / Desparasitación / Otros que filtran los registros, card destacada con el próximo refuerzo e historial de aplicaciones (todas con el badge "Aplicada") con fecha, profesional y, si tiene, fecha de refuerzo. En el carnet solo se cargan aplicaciones ya hechas: no hay registros pendientes. "Agregar Registro" abre un formulario (tipo, nombre, fecha de aplicación con máscara dd/mm/aaaa, que arranca con la fecha de hoy, veterinario y, opcional, la fecha del próximo refuerzo; en las vacunas, también opcional, la foto de la etiqueta) que valida que la aplicación no tenga fecha futura y que el refuerzo sea posterior a ella. La card de próximo refuerzo muestra el más cercano a futuro, tomando solo la última aplicación de cada vacuna o producto. Cada card (incluida la del próximo refuerzo) tiene un lápiz que abre el mismo formulario con los datos cargados para corregir un registro mal cargado; si se cambia el tipo, el carnet salta a esa pestaña. **Foto de la etiqueta:** al cargar o corregir una vacuna se puede sumar la foto del sticker que el veterinario pega en la libreta (marca, lote y vencimiento), como constancia. Al tocar el recuadro se elige entre sacarla en el momento o elegirla de la galería, con recorte apaisado; con la foto cargada se ve la vista previa (tocándola se abre grande) y los botones "Cambiar" y "Quitar". En la pestaña Vacunas cada card suma la fila "Etiqueta" con el botón "Ver etiqueta" (una miniatura de la foto con el texto, de 44 px de alto, que abre el visor) o "—", y la card del próximo refuerzo también muestra el botón. En "Otro", el formulario pide una **descripción** obligatoria ("Ej: consulta, castración, análisis de sangre, medicación…"), que es el título del registro en el carnet. Todas las cards del carnet, incluida la del próximo refuerzo, se deslizan para borrar.
 7. **Perdidos**: mapa de CABA con un marker por reporte (mostaza perdido, teal encontrado), botón "mi ubicación" que centra el mapa con el GPS y carrusel de cards debajo; tocar una card centra el mapa en ese reporte y tocar un marker lleva a su card. Tocar un marker o una card (en el carrusel o en la lista) abre una hoja con todo lo cargado en el reporte: foto circular y centrada como en el perfil de la mascota, con el estado debajo (al tocarla se abre grande y completa a pantalla completa), raza y etiquetas, cuándo (hace cuánto, fecha y hora), dónde, radio de búsqueda, señas o descripción e información adicional, con un aviso si el reporte es propio y el botón "Ver en el mapa". Si es el reporte de perdida de una mascota del usuario (o lo publicó él), la hoja suma "Editar reporte" y "Ya apareció". El toggle Mapa / Lista cambia a una lista vertical. El buscador filtra en local por nombre o barrio y el filtro por estado (perdidos / encontrados). Si el reporte seleccionado tiene radio de búsqueda, el mapa dibuja su círculo, y la card muestra el radio junto a la zona. El FAB mostaza pregunta qué se quiere reportar: "Se perdió mi mascota" o "Encontré una mascota". Si se niega la ubicación, el mapa queda en CABA y aparece un aviso para habilitarla.
 8. **Reportes: mascota propia vs. mascota encontrada.** Son dos flujos distintos porque la persona y lo que sabe son distintos.
    - **Se perdió mi mascota** (modal `mi-mascota-perdida`): el tutor elige cuál de sus mascotas se perdió (llega elegida si se abre desde su perfil) y los datos salen del perfil sin volver a cargarlos (foto, nombre, raza, edad, señas e ID de la chapita). Marca en el mini mapa dónde la vio por última vez (precargado con el GPS) y un radio de búsqueda (200 m, 500 m, 1 km o 2 km) que se dibuja como un círculo mostaza alrededor del pin. Suma información del día (qué tenía puesto, arnés, cómo reacciona). Si la mascota ya está reportada como perdida, no deja publicar otro reporte: muestra "Esta mascota ya está reportada como perdida. No se puede reportar de nuevo." con "Ver o editar el reporte", que abre el que ya existe en Perdidos. "Publicar como perdida" publica el reporte, vibra, cierra el modal y muestra el nuevo marker con su círculo en Perdidos. Si el usuario no tiene mascotas, ofrece cargar una.
@@ -276,26 +278,27 @@ Sprint 2 suma cuatro gestos con `react-native-gesture-handler` 3 y `react-native
 
 | Gesto | Dónde | Alternativa tocable |
 | --- | --- | --- |
-| Pan + pinch + rotación + doble tap + arrastrar para cerrar | Visor de fotos (etiqueta de vacuna, foto de un reporte) | Botón de cerrar y tocar el fondo |
+| Pinch + pan con zoom + doble toque + arrastrar para cerrar | Visor de fotos (etiqueta de vacuna, foto de un reporte) | Botón X para cerrar |
 | Swipe a la izquierda | Cards de turnos y del carnet | Botón "Eliminar" del formulario de edición |
 | Long press (600 ms) | Cards de "Mis Mascotas" | Las mismas acciones en el perfil de la mascota |
 | Fling izquierda / derecha | Calendario de la Agenda | Flechas del encabezado |
 
-### 1. Visor de foto con zoom, rotación y arrastre para cerrar — `react-native-gesture-handler` + `react-native-reanimated` + `expo-haptics`
+### 1. Visor de foto con zoom y arrastre para cerrar — `react-native-gesture-handler` + `react-native-reanimated` + `expo-haptics`
 
 - **Dónde:** el visor de foto a pantalla completa, que se abre al tocar la foto de la etiqueta de una vacuna (en el formulario y en "Ver etiqueta" del carnet) y la foto del detalle de un reporte. Implementado en `src/components/VisorFoto.tsx`.
 - **Qué hace:**
-  - arrastrar con un dedo mueve la foto;
-  - pellizcar hace zoom de 1x a 5x en el punto donde están los dedos. Si al soltar quedó afuera de ese rango, vuelve al límite con un resorte;
-  - girar con dos dedos la rota. Mover, hacer zoom y girar funcionan a la vez;
-  - un doble tap vuelve todo al estado inicial;
-  - sin zoom, arrastrar en vertical cierra el visor. Mientras se arrastra, el fondo se aclara, y si se suelta a más de 150 px se cierra con una vibración leve. Si no, la foto vuelve a su lugar.
-  - El botón de cerrar y tocar el fondo siguen funcionando, para quien no puede hacer el gesto.
+  - el gesto funciona en TODA la pantalla, no solo sobre la foto;
+  - pellizcar hace zoom de 1x a 4x en el punto donde están los dedos. Si al soltar quedó afuera de ese rango, vuelve al límite con un resorte;
+  - con zoom, arrastrar mueve la foto, limitada para que no se vaya de la pantalla: pasado el borde se mueve con resistencia y al soltar rebota. Sin zoom no se mueve;
+  - doble toque: desde 1x hace zoom a 2,5x en el punto tocado; con zoom vuelve a 1x centrada. Animado;
+  - sin zoom, deslizar hacia abajo cierra el visor. Mientras se arrastra, el fondo se aclara, y si se suelta a más de 150 px se cierra con una vibración leve. Si no, la foto vuelve a su lugar;
+  - el toque simple no hace nada (para no pisarse con el doble toque) y no hay rotación.
+  - La X de arriba a la derecha (44x44, dentro del safe area) cierra siempre, para quien no puede hacer el gesto.
 - **Cómo:**
-  - la foto es una `Animated.Image` dentro de un único `GestureDetector`;
-  - los gestos se combinan así: `useExclusiveGestures(dobleTap, useSimultaneousGestures(pan, pinch, rotacion))`. El doble tap tiene prioridad;
-  - posición, escala y rotación son shared values (`useSharedValue`) y se aplican con `useAnimatedStyle`, todo en el hilo de UI. Se anima solo `transform` y `opacity`;
-  - el pan guarda la posición en `onBegin` y le suma `translationX/Y`;
+  - la foto es una `Animated.Image` dentro de un único `GestureDetector` que ocupa toda la pantalla (el contenedor no se transforma, así las coordenadas del gesto siempre son de la pantalla);
+  - los gestos se combinan así: `useCompetingGestures(dobleToque, useSimultaneousGestures(pinch, pan))`. Pellizco y arrastre van a la vez; el doble toque compite con ellos y gana el primero que se activa. Un doble toque sin mover el dedo no activa el arrastre (necesita 10 px) ni el pellizco (necesita dos dedos); si se apoyan dos dedos o se arrastra, el doble toque se cancela. Con `useExclusiveGestures` el arrastre tenía que esperar a que fallara el doble toque;
+  - posición y escala son shared values (`useSharedValue`) y se aplican con `useAnimatedStyle`, todo en el hilo de UI. Se anima solo `transform` y `opacity`;
+  - el pan guarda la posición en `onBegin` y le suma `translationX/Y`, limitada con el tamaño real de la foto ajustada a la pantalla (`onLoad`) y el zoom;
   - el pinch multiplica la escala guardada y usa `focalX/Y` para correr la foto, de modo que el punto entre los dedos quede quieto;
   - solo se vuelve al hilo de JS al soltar el arrastre para cerrar, con `scheduleOnRN`, para vibrar (`Haptics.impactAsync`) y cerrar el modal. Nunca se vuelve en `onUpdate`;
   - el contenido del `Modal` tiene su propio `GestureHandlerRootView`, porque el modal se dibuja fuera de la raíz de la app y sin ella los gestos no responden en Android;
@@ -303,9 +306,9 @@ Sprint 2 suma cuatro gestos con `react-native-gesture-handler` 3 y `react-native
 - **Permiso:** ninguno. El motor de vibración no pide permiso.
 - **Por qué:** la foto de la etiqueta de una vacuna tiene letra chica (lote, marca, fecha) y hace falta acercarla para leerla. En un reporte, ampliar la foto ayuda a reconocer las señas del perro. Arrastrar para cerrar y el doble tap son los gestos que cualquiera ya conoce de la galería del celular.
 
-### 2. Deslizar para borrar turnos y registros — `ReanimatedSwipeable` + `expo-haptics`
+### 2. Deslizar para borrar turnos y registros — `usePanGesture` + `expo-haptics`
 
-- **Dónde:** las cards de turnos de la Agenda y las del historial del carnet sanitario. Implementado en `src/components/DeslizarParaBorrar.tsx`, que envuelve a `TurnoCard` y `RegistroCard`.
+- **Dónde:** las cards de turnos de la Agenda y las del historial del carnet sanitario. Implementado en `src/components/DeslizarParaBorrar.tsx`, que envuelve a `TurnoCard`, `RegistroCard` y `ProximoRefuerzoCard` (así funciona igual con un solo registro, que se muestra como próximo refuerzo).
 - **Qué hace:**
   - deslizar la card a la izquierda deja a la vista un botón rojo "Eliminar". Deslizar no borra nada;
   - al tocar "Eliminar" aparece una confirmación nativa (`Alert`). Si se acepta, se borra en el servidor (`borrarTurno` / `borrarRegistro` del `AppContext`) y el celular vibra con la vibración de éxito;
@@ -313,8 +316,9 @@ Sprint 2 suma cuatro gestos con `react-native-gesture-handler` 3 y `react-native
   - al cruzar el umbral en el que la card va a quedar abierta, vibra una vez.
   - Alternativa tocable: el botón "Eliminar" de los formularios de edición de turno y de registro (se abren con el lápiz de cada card).
 - **Cómo:**
-  - `ReanimatedSwipeable` sigue siendo el componente recomendado en gesture-handler 3.3 y ya está hecho con la API nueva (`usePanGesture` y `scheduleOnRN` por dentro). Se importa de `react-native-gesture-handler/ReanimatedSwipeable`;
-  - para que no se dispare sin querer: `friction` 2 (la card se mueve la mitad que el dedo), queda abierta solo si se soltó pasado el 60 % del botón (`rightThreshold`) y no arranca hasta moverse 20 px en horizontal (`dragOffsetFromRight`). Por eso un scroll vertical de la lista nunca lo activa;
+  - es un `usePanGesture` propio y no `ReanimatedSwipeable`, porque el Swipeable no deja poner `failOffsetY`: se activaba con 10 px hacia la derecha y un scroll con un poco de desvío le robaba el gesto a la lista;
+  - se activa recién con 20 px en horizontal (`activeOffsetX`) y falla si antes se movió 10 px en vertical (`failOffsetY`), así el scroll vertical siempre gana. La lista del carnet es la `FlatList` de gesture-handler, para que el scroll participe de la coordinación;
+  - la card se mueve la mitad que el dedo y queda abierta si se descubrió el 60 % del botón o si se tiró rápido; con la card abierta, tocarla la cierra;
   - el botón aparece con `opacity` y `scale` según el progreso del swipe, en el hilo de UI. La vibración del umbral se dispara con `useAnimatedReaction`, que solo vuelve al hilo de JS en el cruce, no en cada cuadro;
   - la confirmación, el borrado y la vibración están en `useConfirmarBorrado`, que usan tanto el swipe como los formularios.
 - **Permiso:** ninguno.
@@ -361,7 +365,7 @@ La clase usó la API de builders de gesture-handler 2 y `runOnJS` de Reanimated 
 | `Gesture.Simultaneous(...)` / `Gesture.Exclusive(...)` | `useSimultaneousGestures(...)` / `useExclusiveGestures(...)` | Lo mismo: la composición también es un hook. |
 | `Gesture.LongPress().minDuration(600)`, `Gesture.Fling().direction(...)` | `useLongPressGesture({ minDuration: 600 })`, `useFlingGesture({ direction })` | Igual que los demás gestos. |
 | `Gesture.Race(...)` | `useCompetingGestures(...)` | Cambió el nombre además de pasar a hook. |
-| `Swipeable` de `react-native-gesture-handler/Swipeable` | `ReanimatedSwipeable` de `react-native-gesture-handler/ReanimatedSwipeable` | El `Swipeable` viejo ya no está en la versión 3. El nuevo se anima con Reanimated y combina gestos con `simultaneousWith`, `requireToFail` y `block`. |
+| `Swipeable` de `react-native-gesture-handler/Swipeable` | `ReanimatedSwipeable` de `react-native-gesture-handler/ReanimatedSwipeable` | El `Swipeable` viejo ya no está en la versión 3. El nuevo se anima con Reanimated y combina gestos con `simultaneousWith`, `requireToFail` y `block`, pero no deja configurar `failOffsetY`: por eso el proyecto usa un `usePanGesture` propio. |
 | Métodos encadenados: `.onBegin(...).onUpdate(...).numberOfTaps(2)` | Un objeto de configuración: `{ onBegin, onUpdate, numberOfTaps: 2 }` | Los hooks reciben toda la configuración junta. |
 | `onStart` / `onEnd` | `onActivate` / `onDeactivate` (`onBegin`, `onUpdate` y `onFinalize` siguen igual) | Cambiaron de nombre en la API nueva. |
 | `runOnJS(fn)(args)` de `react-native-reanimated` | `scheduleOnRN(fn, args)` de `react-native-worklets` | En Reanimated 4 los hilos pasaron a `react-native-worklets` y `runOnJS` quedó deprecado. |
@@ -391,7 +395,7 @@ Todos los formularios validan en local antes de guardar, con las reglas centrali
 - `IconButton`: botón circular de un ícono, resaltable (buscar y filtrar en Perdidos).
 - `AvatarPerfil`: avatar clickeable del usuario que lleva a Perfil; lo usan `AppHeader` y `ScreenHeader` para que aparezca en todas las pantallas.
 - `Avatar`: foto circular con respaldo de inicial y huella si no hay imagen.
-- `VisorFoto`: modal a pantalla completa para ver una foto grande y entera, con fondo oscuro y botón de cerrar.
+- `VisorFoto`: modal a pantalla completa para ver una foto grande y entera, con fondo oscuro, zoom y la X para cerrar.
 - `PetCard`: card de mascota del listado.
 - `Fab`: botón flotante mostaza, simple o extendido con texto.
 - `Cargando` / `EstadoVacio`: estados de carga, vacío y error de las listas.
