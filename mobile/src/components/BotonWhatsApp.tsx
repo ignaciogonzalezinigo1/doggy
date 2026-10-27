@@ -2,8 +2,8 @@
  * Botón que abre WhatsApp con un mensaje ya escrito para un teléfono.
  *
  * Arma el link con `enlaceWhatsApp` (wa.me, la utilidad única) y lo abre con
- * `Linking.openURL`. El mensaje se arma recién al tocar, porque puede
- * necesitar algo asíncrono (por ejemplo, la ubicación actual). Si WhatsApp no
+ * `Linking.openURL`. El mensaje se arma recién al tocar, con los datos
+ * de ese momento. Si WhatsApp no
  * se puede abrir, avisa y ofrece el número para llamar.
  *
  * Mostrarlo solo para celulares (`esCelular`): a un fijo no se le puede escribir.

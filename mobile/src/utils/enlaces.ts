@@ -1,6 +1,5 @@
 /**
- * Links que abre la app para comunicarse: llamar (`tel:`), WhatsApp (wa.me) y
- * un punto en Google Maps para mandar en un mensaje.
+ * Links que abre la app para comunicarse: llamar (`tel:`) y WhatsApp (wa.me).
  *
  * Los teléfonos llegan del servidor ya en E.164 ("+5491145892310"), así que
  * se usan tal cual: no se vuelven a pasar por `aE164`, que tomaría un fijo
@@ -26,13 +25,4 @@ export function enlaceTelefono(telefono: string): string {
 export function enlaceWhatsApp(telefono: string, texto: string): string {
   const numero = telefono.replace(/\D/g, '');
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
-}
-
-/**
- * Link de Google Maps a un punto, para mandarlo en un mensaje.
- * @param punto latitud y longitud
- * @returns la URL de Google Maps
- */
-export function enlaceMapa(punto: { lat: number; lng: number }): string {
-  return `https://maps.google.com/?q=${punto.lat},${punto.lng}`;
 }

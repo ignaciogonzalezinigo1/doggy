@@ -136,21 +136,12 @@ export default function ReportarScreen() {
 
   /**
    * Mensaje de WhatsApp para la familia: quien escaneó la chapita la tiene
-   * con él (`mensajeLaTengo`). La ubicación es el punto del mapa si ya hay uno
-   * real (lo marcó o llegó el GPS); si no, se pide la actual en el momento.
-   * Sin ubicación, va sin esa parte.
+   * con él (`mensajeLaTengo`). Va sin ubicación.
    * @param mascota mascota identificada
    * @returns el texto del mensaje
    */
-  const mensajeHallazgo = async (mascota: MascotaPublica): Promise<string> => {
-    const punto = pinAjustado.current || gps.ubicacion ? coords : await gps.obtenerUbicacion();
-    return mensajeLaTengo({
-      dueno: mascota.dueno.nombre,
-      yo: usuario?.nombre ?? 'un vecino',
-      mascota: mascota.nombre,
-      punto,
-    });
-  };
+  const mensajeHallazgo = (mascota: MascotaPublica): string =>
+    mensajeLaTengo({ para: mascota.dueno.nombre, yo: usuario?.nombre, mascota: mascota.nombre });
 
   /** Descarta la mascota identificada y vuelve a la cámara. */
   const escanearOtra = () => {

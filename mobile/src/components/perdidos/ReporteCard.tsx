@@ -32,7 +32,7 @@ type Props = {
   /** Familia a la que se le puede escribir (ver `contactoDeLaFamilia`). */
   contacto?: ReportePerdida['contacto'];
   /** Arma el mensaje de WhatsApp para este reporte (estable, para no romper el memo). */
-  armarMensaje?: (reporte: ReportePerdida) => Promise<string>;
+  armarMensaje?: (reporte: ReportePerdida) => string;
 };
 
 /** Lado de la foto cuadrada. */

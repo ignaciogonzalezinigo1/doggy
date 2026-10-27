@@ -22,7 +22,7 @@ type Props = {
   telefono: string;
   /** A quién se contacta. */
   nombre: string;
-  /** Arma el mensaje al tocar el botón (puede pedir la ubicación). */
+  /** Arma el mensaje al tocar el botón. */
   armarMensaje: () => string | Promise<string>;
   /** En fila (para las cards): el botón y el link uno al lado del otro. */
   compacto?: boolean;

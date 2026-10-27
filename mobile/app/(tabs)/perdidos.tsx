@@ -16,8 +16,8 @@
  * editar (abre "Se perdió mi mascota" en modo edición) o cerrar con "Ya apareció"
  * ("Ya volvió a casa" si alguien la encontró).
  * Si es un perdido de otra familia, la card y el detalle ofrecen "Escribirle
- * por WhatsApp" con un mensaje que dice que la vio cerca de donde está el
- * usuario (`mensajeLaVi`), y "o llamar".
+ * por WhatsApp" con un mensaje que dice que la vio (`mensajeLaVi`, sin
+ * ubicación), y "o llamar".
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -94,7 +94,6 @@ export default function PerdidosScreen() {
   const refresco = useRefresco();
   const { reporteId } = useLocalSearchParams<{ reporteId?: string }>();
   const gps = useUbicacion({ automatico: true });
-  const { obtenerUbicacion } = gps;
   const { width } = useWindowDimensions();
 
   // --- Estado ---
@@ -134,22 +133,14 @@ export default function PerdidosScreen() {
   }, [visibles]);
 
   /**
-   * Mensaje de WhatsApp para la familia de un perdido: quien mira cree que la
-   * vio, cerca de donde está ahora (si no se sabe, va sin ubicación).
+   * Mensaje de WhatsApp para la familia de un perdido: quien mira cree que la vio.
    * @param reporte perdido de otra familia
    * @returns el texto del mensaje
    */
   const armarMensaje = useCallback(
-    async (reporte: ReportePerdida) => {
-      const punto = gps.ubicacion ?? (await obtenerUbicacion());
-      return mensajeLaVi({
-        dueno: reporte.contacto?.nombre ?? 'familia',
-        yo: usuario?.nombre ?? 'un vecino',
-        mascota: reporte.nombre,
-        punto,
-      });
-    },
-    [gps.ubicacion, obtenerUbicacion, usuario?.nombre],
+    (reporte: ReportePerdida) =>
+      mensajeLaVi({ para: reporte.contacto?.nombre, yo: usuario?.nombre, mascota: reporte.nombre }),
+    [usuario?.nombre],
   );
 
   // Recién llegado de reportar: se muestra el nuevo marker seleccionado y centrado.
