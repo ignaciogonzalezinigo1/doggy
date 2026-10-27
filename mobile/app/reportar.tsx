@@ -9,7 +9,9 @@
  * Apenas se lee un QR válido se cierra la cámara y aparece la tarjeta de la
  * mascota, de solo lectura: nombre, edad, raza, foto y el nombre de su tutor.
  * Si está reportada como perdida, el servidor suma el teléfono del tutor y
- * aparece como link para llamarlo; si no, no lo manda. Los datos de la
+ * aparece "Escribirle por WhatsApp" con el mensaje armado (`mensajeLaTengo`)
+ * y el link "o llamar" (solo el link si es un fijo); si no, no lo manda. Si
+ * quien escanea es de la familia, ve el teléfono pero no el botón. Los datos de la
  * mascota no se editan ni se envían (el servidor los toma de la mascota):
  * quien la encontró completa solo el hallazgo, que es el comentario, una foto
  * del momento si tiene y el punto en el mapa. "Escanear otra" vuelve a la cámara.
@@ -41,8 +43,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
-import { BotonWhatsApp } from '@/components/BotonWhatsApp';
 import { AvisoPermisoFoto } from '@/components/AvisoPermisoFoto';
+import { ContactoDueno } from '@/components/ContactoDueno';
 import { FotoEditable } from '@/components/FotoEditable';
 import { Input } from '@/components/Input';
 import { LinkTelefono } from '@/components/LinkTelefono';
@@ -61,8 +63,7 @@ import { CODIGO_MASCOTA_REGEX } from '@/utils/codigos';
 import { textoEdad } from '@/utils/etiquetas';
 import { CENTRO_CABA } from '@/utils/mapa';
 import { reporteActivo } from '@/utils/selectores';
-import { enlaceMapa } from '@/utils/enlaces';
-import { esCelular } from '@/utils/telefonos';
+import { mensajeLaTengo } from '@/utils/mensajes';
 import {
   LIMITES,
   limpiarTexto,
@@ -87,7 +88,7 @@ const MENSAJE_YA_AVISARON = 'Ya le avisaron a su familia.';
  * @returns el formulario de reporte
  */
 export default function ReportarScreen() {
-  const { reportes, buscarMascotaPorCodigo, crearReporte } = useApp();
+  const { reportes, mascotas, usuario, buscarMascotaPorCodigo, crearReporte } = useApp();
   const gps = useUbicacion({ automatico: true });
   const fototeca = useFototeca();
   const insets = useSafeAreaInsets();
@@ -112,6 +113,8 @@ export default function ReportarScreen() {
   // --- Datos derivados ---
   // Con QR, lo que ya se sabe de la mascota sale de los reportes activos.
   const perdida = identificada ? !!reporteActivo(reportes, identificada.id) : false;
+  /** true si quien escanea es de la familia (dueño o invitado): no se le ofrece escribirse. */
+  const asignado = identificada ? mascotas.some((m) => m.id === identificada.id) : false;
   const yaAvisaron = identificada
     ? reportes.some((r) => r.estado === 'encontrado' && r.mascotaId === identificada.id)
     : false;
@@ -132,16 +135,21 @@ export default function ReportarScreen() {
   }, []);
 
   /**
-   * Mensaje de WhatsApp para la familia de una mascota perdida. La ubicación
-   * es el punto del mapa si ya hay uno real (lo marcó o llegó el GPS); si no,
-   * se pide la actual en el momento. Sin ubicación, va sin esa línea.
+   * Mensaje de WhatsApp para la familia: quien escaneó la chapita la tiene
+   * con él (`mensajeLaTengo`). La ubicación es el punto del mapa si ya hay uno
+   * real (lo marcó o llegó el GPS); si no, se pide la actual en el momento.
+   * Sin ubicación, va sin esa parte.
    * @param mascota mascota identificada
    * @returns el texto del mensaje
    */
   const mensajeHallazgo = async (mascota: MascotaPublica): Promise<string> => {
-    const saludo = `¡Hola! Encontré a ${mascota.nombre} gracias a su chapita de Doggy.`;
     const punto = pinAjustado.current || gps.ubicacion ? coords : await gps.obtenerUbicacion();
-    return punto ? `${saludo} Estoy acá: ${enlaceMapa(punto)}` : saludo;
+    return mensajeLaTengo({
+      dueno: mascota.dueno.nombre,
+      yo: usuario?.nombre ?? 'un vecino',
+      mascota: mascota.nombre,
+      punto,
+    });
   };
 
   /** Descarta la mascota identificada y vuelve a la cámara. */
@@ -321,17 +329,19 @@ export default function ReportarScreen() {
                 {perdida && (
                   <Text style={styles.identificadaPerdida}>Se perdió: avisale a su familia.</Text>
                 )}
-                {identificada.dueno.telefono && (
+                {/* Si es de la familia, ve el teléfono pero no se escribe a sí mismo. */}
+                {identificada.dueno.telefono && asignado && (
                   <LinkTelefono telefono={identificada.dueno.telefono} nombre={identificada.dueno.nombre} />
                 )}
               </View>
 
               {/* Botones del mismo ancho, uno debajo del otro */}
               <View style={styles.identificadaAcciones}>
-                {perdida && identificada.dueno.telefono && esCelular(identificada.dueno.telefono) && (
-                  <BotonWhatsApp
-                    titulo="Avisar por WhatsApp"
+                {/* El servidor manda el teléfono a alguien ajeno solo si está perdida. */}
+                {identificada.dueno.telefono && !asignado && (
+                  <ContactoDueno
                     telefono={identificada.dueno.telefono}
+                    nombre={identificada.dueno.nombre}
                     armarMensaje={() => mensajeHallazgo(identificada)}
                   />
                 )}

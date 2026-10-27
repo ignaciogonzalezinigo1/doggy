@@ -15,6 +15,9 @@
  * Si el reporte es de una mascota del usuario, desde el detalle se lo puede
  * editar (abre "Se perdió mi mascota" en modo edición) o cerrar con "Ya apareció"
  * ("Ya volvió a casa" si alguien la encontró).
+ * Si es un perdido de otra familia, la card y el detalle ofrecen "Escribirle
+ * por WhatsApp" con un mensaje que dice que la vio cerca de donde está el
+ * usuario (`mensajeLaVi`), y "o llamar".
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -50,7 +53,9 @@ import { useRefresco } from '@/hooks/useRefresco';
 import { Coordenadas, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
+import { mensajeLaVi } from '@/utils/mensajes';
 import {
+  contactoDeLaFamilia,
   FiltroEstado,
   hallazgosPorPerdido,
   puedeGestionarReporte,
@@ -89,6 +94,7 @@ export default function PerdidosScreen() {
   const refresco = useRefresco();
   const { reporteId } = useLocalSearchParams<{ reporteId?: string }>();
   const gps = useUbicacion({ automatico: true });
+  const { obtenerUbicacion } = gps;
   const { width } = useWindowDimensions();
 
   // --- Estado ---
@@ -126,6 +132,25 @@ export default function PerdidosScreen() {
   useEffect(() => {
     visiblesRef.current = visibles;
   }, [visibles]);
+
+  /**
+   * Mensaje de WhatsApp para la familia de un perdido: quien mira cree que la
+   * vio, cerca de donde está ahora (si no se sabe, va sin ubicación).
+   * @param reporte perdido de otra familia
+   * @returns el texto del mensaje
+   */
+  const armarMensaje = useCallback(
+    async (reporte: ReportePerdida) => {
+      const punto = gps.ubicacion ?? (await obtenerUbicacion());
+      return mensajeLaVi({
+        dueno: reporte.contacto?.nombre ?? 'familia',
+        yo: usuario?.nombre ?? 'un vecino',
+        mascota: reporte.nombre,
+        punto,
+      });
+    },
+    [gps.ubicacion, obtenerUbicacion, usuario?.nombre],
+  );
 
   // Recién llegado de reportar: se muestra el nuevo marker seleccionado y centrado.
   // El estado se ajusta durante el render (patrón de React para "cambió un
@@ -371,6 +396,8 @@ export default function PerdidosScreen() {
                     onPress={handleCard}
                     seleccionado={item.id === seleccionadoId}
                     style={estiloCard}
+                    contacto={contactoDeLaFamilia(item, usuario?.id, mascotas)}
+                    armarMensaje={armarMensaje}
                   />
                 )}
                 ItemSeparatorComponent={SeparadorHorizontal}
@@ -398,6 +425,8 @@ export default function PerdidosScreen() {
                 reporte={item}
                 encontrada={hallazgos.has(item.id)}
                 onPress={abrirDetalle}
+                contacto={contactoDeLaFamilia(item, usuario?.id, mascotas)}
+                armarMensaje={armarMensaje}
               />
             )}
             refreshControl={refresco}
@@ -440,6 +469,8 @@ export default function PerdidosScreen() {
         onEditar={editarReporte}
         onYaAparecio={pedirCierre}
         cerrando={cerrando}
+        contacto={detalle ? contactoDeLaFamilia(detalle, usuario?.id, mascotas) : undefined}
+        armarMensaje={armarMensaje}
       />
 
       {/* Dos reportes distintos: el tutor que perdió a su mascota y el vecino que encontró una. */}

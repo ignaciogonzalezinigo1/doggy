@@ -250,3 +250,22 @@ export function puedeGestionarReporte(
   if (reporte.autorId === usuarioId) return true;
   return reporte.mascotaId !== null && mascotas.some((m) => m.id === reporte.mascotaId);
 }
+
+/**
+ * Contacto de la familia de una mascota perdida, para que le escriba quien la
+ * vio. Nunca para quien publicó el reporte ni para el dueño o un asignado de
+ * la mascota (el servidor tampoco se lo manda, pero se chequea igual).
+ * @param reporte reporte de Perdidos
+ * @param usuarioId usuario logueado
+ * @param mascotas mascotas de la cuenta del usuario
+ * @returns nombre y teléfono de la familia, o undefined si no corresponde
+ */
+export function contactoDeLaFamilia(
+  reporte: ReportePerdida,
+  usuarioId: number | undefined,
+  mascotas: Mascota[],
+): ReportePerdida['contacto'] {
+  if (reporte.estado !== 'perdido' || reporte.autorId === usuarioId) return undefined;
+  if (reporte.mascotaId !== null && mascotas.some((m) => m.id === reporte.mascotaId)) return undefined;
+  return reporte.contacto;
+}

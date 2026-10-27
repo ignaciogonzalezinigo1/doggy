@@ -2,6 +2,8 @@
  * Teléfono que se puede tocar para llamar (link `tel:`). Lo usan el aviso
  * "¡Encontraron a …!" (para llamar a quien la encontró) y la mascota
  * identificada por el QR cuando está perdida (para llamar a su tutor).
+ * Con `texto` muestra ese texto chico en lugar del número (el "o llamar" que
+ * acompaña al botón de WhatsApp en `ContactoDueno`).
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { Alert, Linking, Pressable, StyleSheet, Text } from 'react-native';
@@ -15,6 +17,8 @@ type Props = {
   telefono: string;
   /** A quién se llama, para el lector de pantalla. */
   nombre: string;
+  /** Texto a mostrar en lugar del número, sin ícono. */
+  texto?: string;
 };
 
 /**
@@ -22,7 +26,7 @@ type Props = {
  * @param props ver `Props`
  * @returns el número con un ícono de llamada
  */
-export function LinkTelefono({ telefono, nombre }: Props) {
+export function LinkTelefono({ telefono, nombre, texto }: Props) {
   /** Se muestra legible ("+54 9 11 4589-2310"); el link usa E.164. */
   const legible = formatearTelefono(telefono);
 
@@ -45,8 +49,10 @@ export function LinkTelefono({ telefono, nombre }: Props) {
     >
       {({ pressed }) => (
         <>
-          <MaterialIcons name="call" size={sizes.iconSm} color={colors.primary} />
-          <Text style={[styles.numero, pressed && styles.pressed]}>{legible}</Text>
+          {!texto && <MaterialIcons name="call" size={sizes.iconSm} color={colors.primary} />}
+          <Text style={[texto ? styles.secundario : styles.numero, pressed && styles.pressed]}>
+            {texto ?? legible}
+          </Text>
         </>
       )}
     </Pressable>
@@ -63,6 +69,11 @@ const styles = StyleSheet.create({
   },
   numero: {
     ...typography.labelMd,
+    color: colors.primary,
+    textDecorationLine: 'underline',
+  },
+  secundario: {
+    ...typography.bodySm,
     color: colors.primary,
     textDecorationLine: 'underline',
   },

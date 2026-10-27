@@ -12,6 +12,8 @@
  * Si la mascota perdida es del usuario (o él publicó el reporte), suma
  * "Editar reporte" y "Ya apareció" ("Ya volvió a casa" si la encontraron), que
  * cierra el reporte y lo saca del mapa.
+ * Si es un perdido de otra familia (viene `contacto`), lo primero después de
+ * la foto es "¿La viste?" con "Escribirle por WhatsApp" y "o llamar".
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState, type ComponentProps } from 'react';
@@ -25,6 +27,7 @@ import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fecha
 import { textoRadio } from '@/utils/mapa';
 import { Avatar } from '../Avatar';
 import { Chip } from '../Chip';
+import { ContactoDueno } from '../ContactoDueno';
 import { FormModal } from '../FormModal';
 import { PrimaryButton } from '../PrimaryButton';
 import { VisorFoto } from '../VisorFoto';
@@ -50,6 +53,10 @@ type Props = {
   onYaAparecio?: (reporte: ReportePerdida) => void;
   /** true mientras se cierra el reporte. */
   cerrando?: boolean;
+  /** Familia a la que se le puede escribir (ver `contactoDeLaFamilia`). */
+  contacto?: ReportePerdida['contacto'];
+  /** Arma el mensaje de WhatsApp para el reporte. */
+  armarMensaje?: (reporte: ReportePerdida) => Promise<string>;
 };
 
 /**
@@ -68,6 +75,8 @@ export function DetalleReporte({
   onEditar,
   onYaAparecio,
   cerrando = false,
+  contacto,
+  armarMensaje,
 }: Props) {
   if (!reporte) return null;
 
@@ -82,6 +91,17 @@ export function DetalleReporte({
         <View style={styles.propio}>
           <MaterialIcons name="person" size={sizes.iconSm} color={colors.primary} />
           <Text style={styles.propioTexto}>Publicaste este reporte</Text>
+        </View>
+      )}
+
+      {contacto && armarMensaje && (
+        <View style={styles.contacto}>
+          <Text style={styles.contactoTexto}>¿La viste? Avisale a {contacto.nombre}, de su familia.</Text>
+          <ContactoDueno
+            telefono={contacto.telefono}
+            nombre={contacto.nombre}
+            armarMensaje={() => armarMensaje(reporte)}
+          />
         </View>
       )}
 
@@ -306,6 +326,17 @@ const styles = StyleSheet.create({
   estadoTexto: {
     ...typography.labelSm,
     color: colors.white,
+  },
+  contacto: {
+    gap: spacing.stackSm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceContainerLowest,
+    ...shadows.level1,
+  },
+  contactoTexto: {
+    ...typography.bodyMd,
+    color: colors.onSurface,
   },
   hallazgo: {
     gap: spacing.sm,

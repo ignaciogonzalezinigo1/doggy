@@ -125,8 +125,10 @@ export type ReportePerdida = {
   /** Datos extra del tutor: ropa que tenía puesta, arnés, cómo reacciona, etc. */
   infoAdicional?: string;
   /**
-   * Quién encontró a la mascota, para avisarle. Solo viene en los reportes
-   * "encontrado" de una mascota del usuario que publicó otra persona.
+   * A quién avisarle, en E.164. En un "encontrado" de una mascota del usuario
+   * que publicó otra persona: quién la encontró. En un "perdido" de una
+   * mascota a la que el usuario no está asignado: la familia que la busca
+   * (quien publicó el reporte). En los demás no viene.
    */
   contacto?: { nombre: string; telefono: string };
   /** Cuándo se cerró. Solo viene en un reporte cerrado (la respuesta del PATCH que lo cierra). */

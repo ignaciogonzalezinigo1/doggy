@@ -7,6 +7,8 @@
  * se puede abrir, avisa y ofrece el número para llamar.
  *
  * Mostrarlo solo para celulares (`esCelular`): a un fijo no se le puede escribir.
+ * Con `principal` es el botón lleno (la acción principal para contactar a la
+ * familia de una mascota perdida, ver `ContactoDueno`); si no, va con borde.
  */
 import { useState } from 'react';
 import { Alert, Linking } from 'react-native';
@@ -22,6 +24,8 @@ type Props = {
   telefono: string;
   /** Arma el texto del mensaje al tocar el botón. */
   armarMensaje: () => string | Promise<string>;
+  /** Botón lleno, para cuando escribir es la acción principal. */
+  principal?: boolean;
 };
 
 /**
@@ -29,7 +33,7 @@ type Props = {
  * @param props ver `Props`
  * @returns el botón
  */
-export function BotonWhatsApp({ titulo, telefono, armarMensaje }: Props) {
+export function BotonWhatsApp({ titulo, telefono, armarMensaje, principal = false }: Props) {
   const [abriendo, setAbriendo] = useState(false);
 
   /** Arma el mensaje y abre WhatsApp; si no se puede, avisa sin trabar la pantalla. */
@@ -52,7 +56,7 @@ export function BotonWhatsApp({ titulo, telefono, armarMensaje }: Props) {
       title={titulo}
       icon="chat"
       iconLeft
-      variant="outline"
+      variant={principal ? 'primary' : 'outline'}
       size="sm"
       onPress={abrir}
       loading={abriendo}

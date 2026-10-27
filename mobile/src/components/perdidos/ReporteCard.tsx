@@ -5,6 +5,8 @@
  * muestra, en lugar de los chips, "¡La encontraron! Esperando que su familia
  * la recupere".
  * Se usa en el carrusel debajo del mapa y en el modo lista.
+ * Si viene `contacto` (un perdido de otra familia), abajo suma "Escribirle
+ * por WhatsApp" con el link "o llamar" (`ContactoDueno`).
  */
 import { memo } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,6 +19,7 @@ import type { ReportePerdida } from '@/types/models';
 import { TEXTO_HALLAZGO } from '@/utils/etiquetas';
 import { tiempoTranscurrido } from '@/utils/fechas';
 import { textoRadio } from '@/utils/mapa';
+import { ContactoDueno } from '../ContactoDueno';
 
 type Props = {
   reporte: ReportePerdida;
@@ -26,6 +29,10 @@ type Props = {
   /** Resalta la card (la que está centrada en el mapa). */
   seleccionado?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Familia a la que se le puede escribir (ver `contactoDeLaFamilia`). */
+  contacto?: ReportePerdida['contacto'];
+  /** Arma el mensaje de WhatsApp para este reporte (estable, para no romper el memo). */
+  armarMensaje?: (reporte: ReportePerdida) => Promise<string>;
 };
 
 /** Lado de la foto cuadrada. */
@@ -38,7 +45,15 @@ const MAX_CHIPS = 2;
  * @param props ver `Props`
  * @returns la card tocable
  */
-function ReporteCardBase({ reporte, encontrada = false, onPress, seleccionado = false, style }: Props) {
+function ReporteCardBase({
+  reporte,
+  encontrada = false,
+  onPress,
+  seleccionado = false,
+  style,
+  contacto,
+  armarMensaje,
+}: Props) {
   const perdido = reporte.estado === 'perdido';
   const fuente = fuenteFoto(reporte.foto);
   const chips = [reporte.raza, ...reporte.etiquetas].slice(0, MAX_CHIPS);
@@ -55,55 +70,65 @@ function ReporteCardBase({ reporte, encontrada = false, onPress, seleccionado = 
         style,
       ]}
     >
-      <View style={styles.foto}>
-        {/* expo-image: caché y decodificado al tamaño de la miniatura. */}
-        {fuente ? (
-          <Image source={fuente} style={styles.imagen} contentFit="cover" transition={150} />
-        ) : (
-          <View style={[styles.imagen, styles.sinFoto]}>
-            <MaterialIcons name="pets" size={sizes.iconLg} color={colors.tealLight} />
+      <View style={styles.contenido}>
+        <View style={styles.foto}>
+          {/* expo-image: caché y decodificado al tamaño de la miniatura. */}
+          {fuente ? (
+            <Image source={fuente} style={styles.imagen} contentFit="cover" transition={150} />
+          ) : (
+            <View style={[styles.imagen, styles.sinFoto]}>
+              <MaterialIcons name="pets" size={sizes.iconLg} color={colors.tealLight} />
+            </View>
+          )}
+          <View style={[styles.estado, perdido ? styles.estadoPerdido : styles.estadoEncontrado]}>
+            <Text style={styles.estadoTexto}>{perdido ? 'PERDIDO' : 'ENCONTRADO'}</Text>
           </View>
-        )}
-        <View style={[styles.estado, perdido ? styles.estadoPerdido : styles.estadoEncontrado]}>
-          <Text style={styles.estadoTexto}>{perdido ? 'PERDIDO' : 'ENCONTRADO'}</Text>
         </View>
-      </View>
 
-      <View style={styles.info}>
-        <View style={styles.fila}>
-          <Text style={styles.nombre} numberOfLines={1}>
-            {reporte.nombre}
-          </Text>
-          <Text style={styles.tiempo}>{tiempoTranscurrido(reporte.fecha)}</Text>
-        </View>
-        <View style={styles.zona}>
-          <MaterialIcons name="location-on" size={16} color={colors.onSurfaceVariant} />
-          <Text style={styles.zonaTexto} numberOfLines={1}>
-            {reporte.zona}
-            {reporte.radioMetros ? ` · radio ${textoRadio(reporte.radioMetros)}` : ''}
-          </Text>
-        </View>
-        {/* La marca va en el lugar de los chips, así la card no crece. */}
-        {encontrada ? (
-          <View style={styles.hallazgo}>
-            <MaterialIcons name="where-to-vote" size={16} color={colors.primary} />
-            <Text style={styles.hallazgoTexto} numberOfLines={2}>
-              {TEXTO_HALLAZGO}
+        <View style={styles.info}>
+          <View style={styles.fila}>
+            <Text style={styles.nombre} numberOfLines={1}>
+              {reporte.nombre}
+            </Text>
+            <Text style={styles.tiempo}>{tiempoTranscurrido(reporte.fecha)}</Text>
+          </View>
+          <View style={styles.zona}>
+            <MaterialIcons name="location-on" size={16} color={colors.onSurfaceVariant} />
+            <Text style={styles.zonaTexto} numberOfLines={1}>
+              {reporte.zona}
+              {reporte.radioMetros ? ` · radio ${textoRadio(reporte.radioMetros)}` : ''}
             </Text>
           </View>
-        ) : (
-          <View style={styles.chips}>
-            {chips.map((chip, indice) => (
-              // La raza (primer chip) no se achica; las etiquetas sí.
-              <View key={chip} style={[styles.chip, indice === 0 && styles.chipFijo]}>
-                <Text style={styles.chipTexto} numberOfLines={1}>
-                  {chip}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+          {/* La marca va en el lugar de los chips, así la card no crece. */}
+          {encontrada ? (
+            <View style={styles.hallazgo}>
+              <MaterialIcons name="where-to-vote" size={16} color={colors.primary} />
+              <Text style={styles.hallazgoTexto} numberOfLines={2}>
+                {TEXTO_HALLAZGO}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.chips}>
+              {chips.map((chip, indice) => (
+                // La raza (primer chip) no se achica; las etiquetas sí.
+                <View key={chip} style={[styles.chip, indice === 0 && styles.chipFijo]}>
+                  <Text style={styles.chipTexto} numberOfLines={1}>
+                    {chip}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
+      {contacto && armarMensaje && (
+        <ContactoDueno
+          telefono={contacto.telefono}
+          nombre={contacto.nombre}
+          armarMensaje={() => armarMensaje(reporte)}
+          compacto
+        />
+      )}
     </Pressable>
   );
 }
@@ -114,14 +139,17 @@ export const ReporteCard = memo(ReporteCardBase);
 // --- Estilos ---
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.stackSm,
     padding: spacing.stackSm,
     borderRadius: radius.lg,
     borderWidth: sizes.borderWidth,
     borderColor: colors.transparent,
     backgroundColor: colors.surfaceContainerLowest,
     ...shadows.level1,
+  },
+  contenido: {
+    flexDirection: 'row',
+    gap: spacing.md,
   },
   seleccionado: {
     borderColor: colors.tealLight,
