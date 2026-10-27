@@ -11,6 +11,12 @@
  * unos segundos "Ya agregamos el +54, escribí solo tu número". No es un
  * error: si lo que queda no es un número válido, lo dice `validarTelefono`
  * como siempre. El número se manda junto con `telefonoFijo`.
+ *
+ * Diseño: el "+54" y el número van dentro del mismo borde de `Input`, con la
+ * misma altura, fuente y tamaño que el resto de los campos y un separador
+ * entre los dos. Debajo, con el mismo espaciado que el label y el error de
+ * `Input` (8), el aviso del +54 y la casilla, alineados al borde izquierdo
+ * del campo. Con `disabled` (mientras se guarda) se apagan el campo y la casilla.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { forwardRef, useEffect, useRef, useState } from 'react';
@@ -34,6 +40,8 @@ type Props = {
   onCambiarFijo: (fijo: boolean) => void;
   returnKeyType?: 'next' | 'done' | 'go';
   onSubmitEditing?: () => void;
+  /** true mientras se guarda el formulario: no se puede editar. */
+  disabled?: boolean;
 };
 
 /** Prefijo fijo del campo: el código de país de la Argentina. */
@@ -49,7 +57,17 @@ const AVISO_MS = 4000;
  * @returns el input, el aviso (si corresponde) y la casilla
  */
 export const InputTelefono = forwardRef<TextInputInstance, Props>(function InputTelefono(
-  { label = 'Teléfono de emergencia', value, onChangeText, error, fijo, onCambiarFijo, returnKeyType, onSubmitEditing },
+  {
+    label = 'Teléfono de emergencia',
+    value,
+    onChangeText,
+    error,
+    fijo,
+    onCambiarFijo,
+    returnKeyType,
+    onSubmitEditing,
+    disabled = false,
+  },
   ref,
 ) {
   // --- Estado ---
@@ -121,6 +139,7 @@ export const InputTelefono = forwardRef<TextInputInstance, Props>(function Input
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
         submitBehavior={onSubmitEditing ? 'submit' : undefined}
+        editable={!disabled}
       />
       {aviso && (
         <View style={styles.aviso} accessibilityLiveRegion="polite">
@@ -128,7 +147,7 @@ export const InputTelefono = forwardRef<TextInputInstance, Props>(function Input
           <Text style={styles.avisoTexto}>{AVISO_CODIGO_PAIS}</Text>
         </View>
       )}
-      <Casilla label="Es un teléfono fijo" marcada={fijo} onCambiar={onCambiarFijo} />
+      <Casilla label="Es un teléfono fijo" marcada={fijo} onCambiar={onCambiarFijo} disabled={disabled} />
     </View>
   );
 });
@@ -136,12 +155,13 @@ export const InputTelefono = forwardRef<TextInputInstance, Props>(function Input
 // --- Estilos ---
 const styles = StyleSheet.create({
   grupo: {
-    gap: spacing.xs,
+    // El mismo espacio que hay entre el label, el campo y el error de `Input`.
+    gap: spacing.base,
   },
   aviso: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   avisoTexto: {
     ...typography.bodySm,

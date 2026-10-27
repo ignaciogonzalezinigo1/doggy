@@ -9,7 +9,6 @@
 import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleProp,
   StyleSheet,
@@ -54,7 +53,9 @@ export function ScreenContainer({
       {scroll ? (
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          // Padding en los dos: con edge-to-edge (SDK 58) Android ya no achica la
+        // ventana con el teclado, y si la achica el desplazamiento calculado da 0.
+        behavior="padding"
         >
           <ScrollView
             style={styles.flex}

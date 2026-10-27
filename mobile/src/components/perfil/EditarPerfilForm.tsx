@@ -160,6 +160,7 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
         error={errores.telefonoEmergencia}
         fijo={telefonoFijo}
         onCambiarFijo={setTelefonoFijo}
+        disabled={guardando}
       />
 
       <PrimaryButton

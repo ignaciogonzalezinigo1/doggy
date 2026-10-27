@@ -8,7 +8,6 @@ import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -44,7 +43,9 @@ export function FormModal({ visible, titulo, onClose, children }: Props) {
     >
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Padding en los dos: con edge-to-edge (SDK 58) Android ya no achica la
+        // ventana con el teclado, y si la achica el desplazamiento calculado da 0.
+        behavior="padding"
       >
         {/* Tocar el fondo oscuro también cierra */}
         <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Cerrar" />

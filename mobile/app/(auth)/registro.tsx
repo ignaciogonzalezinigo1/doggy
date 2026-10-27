@@ -221,6 +221,7 @@ export default function RegistroScreen() {
           onCambiarFijo={setTelefonoFijo}
           returnKeyType="next"
           onSubmitEditing={() => passwordRef.current?.focus()}
+          disabled={enviando}
         />
         <Input
           ref={passwordRef}

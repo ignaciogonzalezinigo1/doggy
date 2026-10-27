@@ -7,8 +7,15 @@
  * de iOS los aplica aunque el texto esté oculto); el padre igual puede pisarlos. Con `multiline` crece para textos largos (señas, descripciones)
  * y, si tiene `maxLength`, muestra debajo cuántos caracteres van del máximo.
  * Con `prefijo` muestra un texto fijo, no editable, antes de lo que se escribe
- * (el "+54" del teléfono).
+ * (el "+54" del teléfono), dentro del mismo borde, con la misma fuente y
+ * tamaño que el valor y un separador vertical entre los dos.
+ * Con `editable={false}` se ve deshabilitado (fondo apagado y texto gris).
  * Acepta el resto de las props de TextInput.
+ *
+ * Alineación: en los campos de una línea el TextInput no lleva `lineHeight`
+ * ni el padding de fuente de Android (`includeFontPadding`), que lo bajaban
+ * respecto del ícono y del prefijo; así el texto queda centrado igual en iOS
+ * y en Android, con foco, con error y deshabilitado.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { ComponentProps, forwardRef, useState } from 'react';
@@ -68,6 +75,7 @@ export const Input = forwardRef<TextInputInstance, Props>(function Input(
 
   // En los textos largos se muestra cuánto falta para el máximo.
   const contador = !!inputProps.multiline && inputProps.maxLength !== undefined;
+  const deshabilitado = inputProps.editable === false;
   const largo = inputProps.value?.length ?? 0;
 
   /** Alterna entre mostrar y ocultar la contraseña. */
@@ -83,6 +91,7 @@ export const Input = forwardRef<TextInputInstance, Props>(function Input(
           inputProps.multiline && styles.fieldMultiline,
           focused && styles.fieldFocused,
           !!error && styles.fieldError,
+          deshabilitado && styles.fieldDisabled,
         ]}
       >
         {icon && (
@@ -92,10 +101,19 @@ export const Input = forwardRef<TextInputInstance, Props>(function Input(
             color={focused ? colors.tealLight : colors.outline}
           />
         )}
-        {!!prefijo && <Text style={styles.prefijo}>{prefijo}</Text>}
+        {!!prefijo && (
+          <>
+            <Text style={[styles.prefijo, deshabilitado && styles.textoDisabled]}>{prefijo}</Text>
+            <View style={styles.separadorPrefijo} />
+          </>
+        )}
         <TextInput
           ref={ref}
-          style={[styles.input, inputProps.multiline && styles.inputMultiline]}
+          style={[
+            styles.input,
+            inputProps.multiline ? styles.inputMultiline : styles.inputUnaLinea,
+            deshabilitado && styles.textoDisabled,
+          ]}
           placeholderTextColor={colors.outline}
           secureTextEntry={password && hidden}
           onFocus={handleFocus}
@@ -170,21 +188,41 @@ const styles = StyleSheet.create({
   fieldError: {
     borderColor: colors.error,
   },
+  fieldDisabled: {
+    backgroundColor: colors.surfaceContainerLow,
+  },
   input: {
     flex: 1,
     // Sin esto, en pantallas angostas el campo no se achica y empuja el ícono afuera.
     minWidth: 0,
     height: '100%',
-    ...typography.bodyMd,
+    fontFamily: typography.bodyMd.fontFamily,
+    fontSize: typography.bodyMd.fontSize,
     color: colors.onSurface,
     // En web el navegador agrega su propio contorno de foco; el borde del campo ya lo indica.
     outlineWidth: 0,
   },
+  inputUnaLinea: {
+    paddingVertical: 0,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
   prefijo: {
-    ...typography.bodyMd,
+    fontFamily: typography.bodyMd.fontFamily,
+    fontSize: typography.bodyMd.fontSize,
+    color: colors.onSurface,
+    includeFontPadding: false,
+  },
+  separadorPrefijo: {
+    width: sizes.borderWidth,
+    height: sizes.iconMd,
+    backgroundColor: colors.outlineVariant,
+  },
+  textoDisabled: {
     color: colors.onSurfaceVariant,
   },
   inputMultiline: {
+    lineHeight: typography.bodyMd.lineHeight,
     height: undefined,
     minHeight: sizes.inputHeight * 2 - spacing.stackSm * 2,
     // Android centra el texto por defecto en los campos de varias líneas.
