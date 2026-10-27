@@ -38,6 +38,10 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.onSecondaryContainer,
         tabBarInactiveTintColor: colors.onSurfaceVariant,
         sceneStyle: { backgroundColor: colors.surface },
+        // Una tab que no está a la vista no se vuelve a dibujar con cada cambio
+        // del contexto (por ejemplo, el mapa mientras se refresca Mis Mascotas):
+        // react-native-screens la congela y se pone al día al volver a ella.
+        freezeOnBlur: true,
       }}
     >
       <Tabs.Screen name="mascotas" options={{ title: 'Mascotas', tabBarIcon: tabIcon('pets') }} />

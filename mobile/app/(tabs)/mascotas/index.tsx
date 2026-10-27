@@ -17,6 +17,7 @@ import { Fab } from '@/components/Fab';
 import { AvisoEncontrada } from '@/components/mascotas/AvisoEncontrada';
 import { PetCard } from '@/components/PetCard';
 import { useApp } from '@/context/AppContext';
+import { useMenuMascota } from '@/hooks/useMenuMascota';
 import { useRecuperarMascota } from '@/hooks/useRecuperarMascota';
 import { useRefresco } from '@/hooks/useRefresco';
 import { colors, sizes, spacing, typography } from '@/theme';
@@ -30,6 +31,8 @@ import { reporteEncontrado } from '@/utils/selectores';
 export default function MisMascotasScreen() {
   const { mascotas, reportes, cargando, error, recargar } = useApp();
   const { recuperando, pedirRecuperacion } = useRecuperarMascota();
+  // El menú vive acá y no en cada card, así las cards no leen el contexto.
+  const { abrirMenu } = useMenuMascota();
   const refresco = useRefresco();
 
   // --- Datos derivados ---
@@ -80,7 +83,7 @@ export default function MisMascotasScreen() {
       <FlatList
         data={mascotas}
         keyExtractor={(mascota) => String(mascota.id)}
-        renderItem={({ item }) => <PetCard mascota={item} onPress={abrirMascota} />}
+        renderItem={({ item }) => <PetCard mascota={item} onPress={abrirMascota} onMantener={abrirMenu} />}
         refreshControl={refresco}
         ListHeaderComponent={
           <View style={styles.encabezado}>

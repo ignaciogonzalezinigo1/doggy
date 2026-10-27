@@ -13,6 +13,8 @@ export default function MascotasLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.surface },
+        // La lista que queda debajo del perfil no se vuelve a dibujar mientras no se ve.
+        freezeOnBlur: true,
       }}
     >
       <Stack.Screen name="index" />

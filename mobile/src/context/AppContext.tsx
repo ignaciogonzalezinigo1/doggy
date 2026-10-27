@@ -27,13 +27,18 @@
  * Refrescar (pull-to-refresh): `refrescar` vuelve a pedir todo con los mismos
  * services que la carga inicial (`pedirTodo`). A diferencia de `recargar`, no
  * pone `cargando` (las pantallas siguen mostrando los datos) y, si falla,
- * avisa con un Alert y deja los datos que había.
+ * avisa con un Alert y deja los datos que había. Si ya hay un refresco en
+ * curso, devuelve ese mismo en vez de pedir todo otra vez.
  *
- * Rendimiento: hay dos contextos. `useApp()` da todo (datos y acciones) y
+ * Rendimiento: hay tres contextos. `useApp()` da todo (datos y acciones) y
  * re-renderiza cuando cambia cualquier dato. `useAcciones()` da solo las
  * acciones, cuyo valor no cambia nunca (son todas `useCallback` estables):
  * las cards de las listas lo usan para borrar sin re-renderizarse cada vez
- * que cambia otro dato.
+ * que cambia otro dato. `useRefrescando()` da solo si hay un refresco en
+ * curso, así prender y apagar la ruedita no re-renderiza toda la app.
+ * Al aplicar una carga, cada lista conserva los objetos que no cambiaron
+ * (`conservarIguales`): si un refresco trae lo mismo, el estado no cambia y
+ * nadie se vuelve a dibujar; si cambió un reporte, solo cambia ese.
  */
 import {
   createContext,
@@ -97,8 +102,6 @@ type AppDatos = {
   cuidadores: Cuidador[];
   /** true mientras se cargan los datos de la sesión. */
   cargando: boolean;
-  /** true mientras se refresca con pull-to-refresh (los datos siguen a la vista). */
-  refrescando: boolean;
   /** Mensaje de error de la última carga, si falló. */
   error: string | null;
 };
@@ -142,6 +145,8 @@ type AppContextValue = AppDatos & AppAcciones;
 
 const AppContext = createContext<AppContextValue | null>(null);
 const AccionesContext = createContext<AppAcciones | null>(null);
+/** true mientras hay un refresco (pull-to-refresh) en curso. */
+const RefrescandoContext = createContext(false);
 
 /**
  * Extrae un mensaje legible de un error desconocido.
@@ -166,6 +171,36 @@ function pedirTodo() {
     reportesService.obtenerReportes(),
     cuidadoresService.obtenerCuidadores(),
   ]);
+}
+
+/**
+ * Lista nueva que reusa los objetos de la anterior que no cambiaron (mismo id
+ * y mismo contenido). Si no cambió nada, devuelve la anterior tal cual: así
+ * `setState` no re-renderiza y las cards memoizadas reciben el mismo objeto.
+ * @param anterior lista que había en el estado
+ * @param nueva lista que respondió el servidor
+ * @returns la lista a guardar
+ */
+function conservarIguales<T extends { id: number }>(anterior: T[], nueva: T[]): T[] {
+  const porId = new Map(anterior.map((item) => [item.id, item]));
+  let cambio = anterior.length !== nueva.length;
+  const resultado = nueva.map((item, indice) => {
+    const previo = porId.get(item.id);
+    const igual = previo !== undefined && JSON.stringify(previo) === JSON.stringify(item);
+    if (!igual || anterior[indice] !== previo) cambio = true;
+    return igual ? previo : item;
+  });
+  return cambio ? resultado : anterior;
+}
+
+/**
+ * El valor anterior si el nuevo tiene el mismo contenido (para el usuario).
+ * @param anterior valor que había en el estado
+ * @param nuevo valor que respondió el servidor
+ * @returns el valor a guardar
+ */
+function mismoSiIgual<T>(anterior: T, nuevo: T): T {
+  return JSON.stringify(anterior) === JSON.stringify(nuevo) ? anterior : nuevo;
 }
 
 /** Lo que devuelve `pedirTodo`. */
@@ -213,24 +248,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
    * sesión anterior y no toca el estado.
    */
   const sesionActual = useRef(0);
+  /** Refresco en curso, para no lanzar otro igual mientras tanto. */
+  const refrescoEnCurso = useRef<Promise<void> | null>(null);
 
   // --- Carga de datos ---
   /**
-   * Guarda en el estado los datos que trajo `pedirTodo`.
+   * Guarda en el estado los datos que trajo `pedirTodo`, conservando lo que
+   * no cambió (ver `conservarIguales`).
    * @param datos usuario, mascotas, registros, turnos, reportes y cuidadores
    */
   const aplicarDatos = useCallback(([u, m, r, t, rep, c]: DatosIniciales) => {
-    setUsuario(u);
-    setMascotas(m);
-    setRegistros(r);
-    setTurnos(t);
-    setReportes(rep);
-    setCuidadores(c);
+    setUsuario((prev) => mismoSiIgual(prev, u));
+    setMascotas((prev) => conservarIguales(prev, m));
+    setRegistros((prev) => conservarIguales(prev, r));
+    setTurnos((prev) => conservarIguales(prev, t));
+    setReportes((prev) => conservarIguales(prev, rep));
+    setCuidadores((prev) => conservarIguales(prev, c));
   }, []);
 
   /** Vacía todos los datos y deja la sesión cerrada (logout o sesión vencida). */
   const limpiarEstado = useCallback(() => {
     sesionActual.current += 1;
+    refrescoEnCurso.current = null;
     setSesion('cerrada');
     setUsuario(null);
     setMascotas([]);
@@ -262,24 +301,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /**
    * Pull-to-refresh: vuelve a pedir todo (por si otro usuario cambió algo)
-   * sin mostrar el estado de carga. Si falla, avisa y conserva los datos.
+   * sin mostrar el estado de carga. Si falla, avisa y conserva los datos. Si
+   * ya hay uno en curso (tirar dos veces, o el botón y la lista), devuelve ese.
    */
-  const refrescar = useCallback(async () => {
+  const refrescar = useCallback(() => {
+    if (refrescoEnCurso.current) return refrescoEnCurso.current;
     const sesionDeLaCarga = sesionActual.current;
     const sigueVigente = () => sesionDeLaCarga === sesionActual.current;
     setRefrescando(true);
-    try {
-      const datos = await pedirTodo();
-      if (!sigueVigente()) return;
-      aplicarDatos(datos);
-      setError(null);
-    } catch (e) {
-      if (sigueVigente()) {
-        Alert.alert('No pudimos actualizar', `${mensajeDeError(e)} Te seguimos mostrando lo último que cargaste.`);
+    const refresco = (async () => {
+      try {
+        const datos = await pedirTodo();
+        if (!sigueVigente()) return;
+        aplicarDatos(datos);
+        setError(null);
+      } catch (e) {
+        if (sigueVigente()) {
+          Alert.alert('No pudimos actualizar', `${mensajeDeError(e)} Te seguimos mostrando lo último que cargaste.`);
+        }
+      } finally {
+        if (sigueVigente()) {
+          refrescoEnCurso.current = null;
+          setRefrescando(false);
+        }
       }
-    } finally {
-      if (sigueVigente()) setRefrescando(false);
-    }
+    })();
+    refrescoEnCurso.current = refresco;
+    return refresco;
   }, [aplicarDatos]);
 
   // Al abrir la app se busca una sesión guardada. El estado se actualiza en los
@@ -568,18 +616,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       reportes,
       cuidadores,
       cargando,
-      refrescando,
       error,
       ...acciones,
     }),
-    [sesion, usuario, mascotas, registros, turnos, reportes, cuidadores, cargando, refrescando, error, acciones],
+    [sesion, usuario, mascotas, registros, turnos, reportes, cuidadores, cargando, error, acciones],
   );
 
   return (
     <AccionesContext.Provider value={acciones}>
-      <AppContext.Provider value={value}>{children}</AppContext.Provider>
+      <RefrescandoContext.Provider value={refrescando}>
+        <AppContext.Provider value={value}>{children}</AppContext.Provider>
+      </RefrescandoContext.Provider>
     </AccionesContext.Provider>
   );
+}
+
+/**
+ * Hook para saber si hay un refresco en curso (la ruedita del pull-to-refresh
+ * o el botón "Actualizar" del mapa). Solo re-renderiza cuando eso cambia.
+ * @returns true mientras se refresca
+ */
+export function useRefrescando(): boolean {
+  return useContext(RefrescandoContext);
 }
 
 /**

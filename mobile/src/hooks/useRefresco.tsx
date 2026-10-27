@@ -4,10 +4,13 @@
  * Perfil). Deslizar hacia abajo llama a `refrescar` del contexto, que vuelve a
  * pedir todo con los mismos services que la carga inicial; si falla, avisa y
  * deja los datos que había. Usa los colores del tema en iOS y en Android.
+ *
+ * Lee solo las acciones (que no cambian) y `useRefrescando`, así prender y
+ * apagar la ruedita no re-renderiza la pantalla entera por el contexto de datos.
  */
 import { RefreshControl } from 'react-native';
 
-import { useApp } from '@/context/AppContext';
+import { useAcciones, useRefrescando } from '@/context/AppContext';
 import { colors } from '@/theme';
 
 /**
@@ -15,7 +18,8 @@ import { colors } from '@/theme';
  * @returns el `RefreshControl` conectado al contexto
  */
 export function useRefresco() {
-  const { refrescando, refrescar } = useApp();
+  const { refrescar } = useAcciones();
+  const refrescando = useRefrescando();
   return (
     <RefreshControl
       refreshing={refrescando}

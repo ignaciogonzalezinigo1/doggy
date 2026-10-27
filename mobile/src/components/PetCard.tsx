@@ -1,7 +1,9 @@
 /**
  * Card de una mascota en el listado: foto circular, nombre y raza.
  * Tocarla lleva al perfil de la mascota; mantenerla presionada abre un menú
- * con acciones rápidas (ver `useMenuMascota`).
+ * con acciones rápidas (ver `useMenuMascota`), que abre la pantalla con
+ * `onMantener`: así la card no lee el contexto y, con `memo`, solo se vuelve
+ * a dibujar si cambia su mascota.
  *
  * Gestos (react-native-gesture-handler 3 + react-native-reanimated 4):
  * - Mantener presionado 600 ms (`useLongPressGesture`) abre el menú con una
@@ -32,7 +34,6 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { useMenuMascota } from '@/hooks/useMenuMascota';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import type { Mascota } from '@/types/models';
 import { Avatar } from './Avatar';
@@ -40,6 +41,8 @@ import { Avatar } from './Avatar';
 type Props = {
   mascota: Mascota;
   onPress: (mascota: Mascota) => void;
+  /** Abre el menú de acciones rápidas (mantener presionado o "Más opciones"). */
+  onMantener: (mascota: Mascota) => void;
 };
 
 /** Diámetro de la foto dentro de la card. */
@@ -53,11 +56,10 @@ const ESCALA_PRESIONADA = 0.96;
  * Card de una mascota, con toque y long press.
  * @param props.mascota datos a mostrar
  * @param props.onPress se llama con la mascota al tocar la card
+ * @param props.onMantener se llama con la mascota al mantenerla presionada
  * @returns la card
  */
-function PetCardBase({ mascota, onPress }: Props) {
-  const { abrirMenu } = useMenuMascota();
-
+function PetCardBase({ mascota, onPress, onMantener }: Props) {
   // --- Estado ---
   const escala = useSharedValue(1);
 
@@ -68,7 +70,7 @@ function PetCardBase({ mascota, onPress }: Props) {
   /** Vibra y abre el menú. Corre en el hilo de JS: se llama con `scheduleOnRN`. */
   const abrirMenuConVibracion = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    abrirMenu(mascota);
+    onMantener(mascota);
   };
 
   /**
@@ -76,7 +78,7 @@ function PetCardBase({ mascota, onPress }: Props) {
    * @param event acción pedida
    */
   const handleAccion = (event: AccessibilityActionEvent) => {
-    if (event.nativeEvent.actionName === 'longpress') abrirMenu(mascota);
+    if (event.nativeEvent.actionName === 'longpress') onMantener(mascota);
     else abrirPerfil();
   };
 

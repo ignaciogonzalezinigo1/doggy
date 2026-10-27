@@ -44,7 +44,7 @@ import { MapaReportes, MapaReportesHandle } from '@/components/perdidos/MapaRepo
 import { ReporteCard } from '@/components/perdidos/ReporteCard';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SegmentedControl } from '@/components/SegmentedControl';
-import { useApp } from '@/context/AppContext';
+import { useApp, useRefrescando } from '@/context/AppContext';
 import { useCerrarReporte } from '@/hooks/useCerrarReporte';
 import { useRefresco } from '@/hooks/useRefresco';
 import { Coordenadas, useUbicacion } from '@/hooks/useUbicacion';
@@ -84,7 +84,8 @@ const ESPERA_CIERRE_HOJA_MS = 300;
  * @returns el mapa o la lista de reportes
  */
 export default function PerdidosScreen() {
-  const { reportes, usuario, mascotas, error, recargar, refrescando, refrescar } = useApp();
+  const { reportes, usuario, mascotas, error, recargar, refrescar } = useApp();
+  const refrescando = useRefrescando();
   const refresco = useRefresco();
   const { reporteId } = useLocalSearchParams<{ reporteId?: string }>();
   const gps = useUbicacion({ automatico: true });
@@ -120,6 +121,11 @@ export default function PerdidosScreen() {
   const anchoCard = width - spacing.containerMargin * 2 - ASOMA;
   /** Mismo objeto mientras no cambie el ancho, así `ReporteCard` (memoizada) no se redibuja. */
   const estiloCard = useMemo(() => ({ width: anchoCard }), [anchoCard]);
+  /** Lista visible para los handlers, sin que cambien cada vez que cambia la lista (los markers no se redibujan). */
+  const visiblesRef = useRef(visibles);
+  useEffect(() => {
+    visiblesRef.current = visibles;
+  }, [visibles]);
 
   // Recién llegado de reportar: se muestra el nuevo marker seleccionado y centrado.
   // El estado se ajusta durante el render (patrón de React para "cambió un
@@ -182,11 +188,11 @@ export default function PerdidosScreen() {
   const handleMarker = useCallback(
     (reporte: ReportePerdida) => {
       setSeleccionadoId(reporte.id);
-      const indice = visibles.findIndex((r) => r.id === reporte.id);
+      const indice = visiblesRef.current.findIndex((r) => r.id === reporte.id);
       if (indice >= 0) carruselRef.current?.scrollToIndex({ index: indice, animated: true });
       abrirDetalle(reporte);
     },
-    [visibles, abrirDetalle],
+    [abrirDetalle],
   );
 
   /** "Ver en el mapa" del detalle: vuelve al mapa (si estaba en lista) centrado en el reporte. */
@@ -388,7 +394,11 @@ export default function PerdidosScreen() {
             data={visibles}
             keyExtractor={(reporte) => String(reporte.id)}
             renderItem={({ item }) => (
-              <ReporteCard reporte={item} encontrada={hallazgos.has(item.id)} onPress={abrirDetalle} />
+              <ReporteCard
+                reporte={item}
+                encontrada={hallazgos.has(item.id)}
+                onPress={abrirDetalle}
+              />
             )}
             refreshControl={refresco}
             ListHeaderComponent={
