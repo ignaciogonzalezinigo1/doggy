@@ -140,7 +140,9 @@ export default function AsignarScreen() {
             <Badge label={rol.label} tone={invitacion.rol === 'dueno' ? 'teal' : 'neutral'} />
           </View>
           <Text style={styles.rolDescripcion}>{rol.descripcion}</Text>
-          <Text style={styles.rolDescripcion}>Podés desasignarte cuando quieras desde tu perfil.</Text>
+          {invitacion.rol === 'invitado' && (
+            <Text style={styles.rolDescripcion}>Podés dejar de cuidarla cuando quieras desde tu perfil.</Text>
+          )}
           <Text style={styles.unSoloUso}>Es de un solo uso.</Text>
         </View>
 

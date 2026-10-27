@@ -5,7 +5,9 @@
  * - Solo un dueño de la mascota puede generar códigos de asignación.
  * - Un código es de un solo uso: sirve para una sola persona.
  * - Cualquiera puede desasignarse, salvo que sea el último dueño: la mascota
- *   no puede quedar sin nadie que pueda administrarla.
+ *   no puede quedar sin nadie que pueda administrarla. La app solo se lo
+ *   ofrece a los invitados ("Dejar de cuidar a …").
+ * - Un dueño puede sacar a un invitado, pero no a otro dueño.
  */
 import type { Cuidador, Invitacion, Mascota, RolMascota } from '@/types/models';
 import { conCuerpo, pedirJson, pedirSinRespuesta } from './http';
@@ -70,4 +72,15 @@ export async function aceptarInvitacion(token: string): Promise<Cuidador> {
  */
 export async function desasignarme(mascotaId: number): Promise<void> {
   await pedirSinRespuesta(`/api/mascotas/${mascotaId}/cuidadores/me`, { method: 'DELETE' });
+}
+
+/**
+ * Saca a un invitado de una mascota. Solo lo puede hacer un dueño, y no a otro dueño.
+ * Endpoint: DELETE /api/mascotas/:id/cuidadores/:usuarioId -> 204 | 403 | 404 si no está asignado
+ * @param mascotaId mascota
+ * @param usuarioId invitado a sacar
+ * @throws si no es dueño, el otro es dueño o ya no estaba asignado
+ */
+export async function quitarCuidador(mascotaId: number, usuarioId: number): Promise<void> {
+  await pedirSinRespuesta(`/api/mascotas/${mascotaId}/cuidadores/${usuarioId}`, { method: 'DELETE' });
 }

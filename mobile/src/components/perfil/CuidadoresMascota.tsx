@@ -4,7 +4,9 @@
  * aparece marcado como "Vos".
  *
  * Solo si el usuario es dueño se muestra "Asignar", que genera un código de
- * asignación. Cualquiera puede desasignarse con "Desasignarme".
+ * asignación, y "Quitar" en la fila de cada invitado (no en la de otro dueño
+ * ni en la propia). Un invitado puede irse con "Dejar de cuidar a …"; un
+ * dueño no se saca a sí mismo desde acá (para eso está "Eliminar mascota").
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
@@ -22,8 +24,10 @@ type Props = {
   usuario: Usuario;
   /** Abre el formulario para generar un código de asignación. */
   onAsignar: (mascota: Mascota) => void;
-  /** Abre la confirmación para desasignarse. */
+  /** Abre la confirmación para dejar de cuidarla (solo invitados). */
   onDesasignarme: (mascota: Mascota) => void;
+  /** Pide confirmación y saca a un invitado (solo dueños). */
+  onQuitar: (mascota: Mascota, cuidador: Cuidador) => void;
 };
 
 /** Colores del badge de cada rol. */
@@ -58,7 +62,7 @@ function textoCantidad(cantidad: number): string {
  * @param props ver `Props`
  * @returns la card
  */
-export function CuidadoresMascota({ mascota, cuidadores, usuario, onAsignar, onDesasignarme }: Props) {
+export function CuidadoresMascota({ mascota, cuidadores, usuario, onAsignar, onDesasignarme, onQuitar }: Props) {
   const miRol = cuidadores.find((c) => c.usuarioId === usuario.id)?.rol;
   // El usuario logueado va primero; después los dueños y al final los invitados.
   const ordenados = [...cuidadores].sort((a, b) => {
@@ -112,6 +116,17 @@ export function CuidadoresMascota({ mascota, cuidadores, usuario, onAsignar, onD
             <View style={[styles.rol, { backgroundColor: rol.fondo }]}>
               <Text style={[styles.rolTexto, { color: rol.texto }]}>{rolMascota(cuidador.rol).label}</Text>
             </View>
+            {miRol === 'dueno' && cuidador.rol === 'invitado' && !esVos && (
+              <Pressable
+                onPress={() => onQuitar(mascota, { ...cuidador, nombre })}
+                accessibilityRole="button"
+                accessibilityLabel={`Quitar a ${nombre}`}
+                hitSlop={spacing.sm}
+                style={({ pressed }) => [styles.quitar, pressed && styles.desasignarPressed]}
+              >
+                <Text style={styles.quitarTexto}>Quitar</Text>
+              </Pressable>
+            )}
           </View>
         );
       })}
@@ -128,7 +143,8 @@ export function CuidadoresMascota({ mascota, cuidadores, usuario, onAsignar, onD
         </Pressable>
       )}
 
-      {miRol && (
+      {/* Solo un invitado se va por su cuenta; un dueño, eliminando la mascota. */}
+      {miRol === 'invitado' && (
         <Pressable
           onPress={() => onDesasignarme(mascota)}
           accessibilityRole="button"
@@ -136,7 +152,7 @@ export function CuidadoresMascota({ mascota, cuidadores, usuario, onAsignar, onD
           style={({ pressed }) => [styles.desasignar, pressed && styles.desasignarPressed]}
         >
           <MaterialIcons name="person-remove" size={sizes.iconSm} color={colors.error} />
-          <Text style={styles.desasignarTexto}>Desasignarme de {mascota.nombre}</Text>
+          <Text style={styles.desasignarTexto}>Dejar de cuidar a {mascota.nombre}</Text>
         </Pressable>
       )}
     </View>
@@ -262,6 +278,14 @@ const styles = StyleSheet.create({
   },
   desasignarPressed: {
     opacity: 0.6,
+  },
+  quitar: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  quitarTexto: {
+    ...typography.labelSm,
+    color: colors.error,
   },
   desasignarTexto: {
     ...typography.labelSm,

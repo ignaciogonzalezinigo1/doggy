@@ -7,12 +7,13 @@
  * tiene ubicación ni teléfono: en su lugar se invita a completarlos.
  *
  * Asignación de mascotas: un dueño genera un código con un rol (Dueño /
- * Invitado) desde la card de cada mascota; cualquiera puede desasignarse
- * (salvo el último dueño); y "Tengo un código de asignación" permite cargar
- * el código recibido para abrir la pantalla de aceptación.
+ * Invitado) desde la card de cada mascota y puede quitar a un invitado (con
+ * confirmación); un invitado puede dejar de cuidarla; y "Tengo un código de
+ * asignación" permite cargar el código recibido para abrir la pantalla de
+ * aceptación.
  *
- * Háptica: al desasignarse vibra con `expo-haptics` para confirmar que salió
- * bien (o avisar que falló). No pide permisos.
+ * Háptica: al quitar a alguien o dejar de cuidar una mascota vibra con
+ * `expo-haptics` para confirmar que salió bien (o avisar que falló). No pide permisos.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -40,7 +41,7 @@ import { useApp } from '@/context/AppContext';
 import { useFototeca } from '@/hooks/useFototeca';
 import { useRefresco } from '@/hooks/useRefresco';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
-import type { Mascota } from '@/types/models';
+import type { Cuidador, Mascota } from '@/types/models';
 import { codigoDeTexto } from '@/utils/invitaciones';
 import { LIMITES } from '@/utils/validaciones';
 
@@ -69,6 +70,7 @@ export default function PerfilScreen() {
     recargar,
     actualizarUsuario,
     desasignarme,
+    quitarCuidador,
     cerrarSesion,
   } = useApp();
   const refresco = useRefresco();
@@ -132,18 +134,38 @@ export default function PerfilScreen() {
   const cerrarHoja = () => setHoja(null);
 
   /**
-   * true si el usuario es el único dueño de la mascota (entonces no puede desasignarse).
-   * @param mascota mascota a revisar
+   * Pide confirmación y saca a un invitado de la mascota. Vibra al terminar y,
+   * si el servidor no lo deja, muestra su mensaje.
+   * @param mascota mascota de la card
+   * @param cuidador invitado a quitar
    */
-  const esUnicoDueno = (mascota: Mascota) => {
-    const duenos = cuidadores.filter((c) => c.mascotaId === mascota.id && c.rol === 'dueno');
-    return duenos.length === 1 && duenos[0].usuarioId === usuario?.id;
+  const pedirQuitar = (mascota: Mascota, cuidador: Cuidador) => {
+    Alert.alert(
+      `¿Quitar a ${cuidador.nombre}?`,
+      `Ya no va a poder ver ni editar a ${mascota.nombre}.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Quitar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await quitarCuidador(mascota.id, cuidador.usuarioId);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (e) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('No se pudo quitar', e instanceof Error ? e.message : 'Intentá de nuevo.');
+            }
+          },
+        },
+      ],
+    );
   };
 
   /**
-   * Desasigna al usuario de la mascota de la hoja (ya confirmado en la hoja):
-   * la mascota sale de su cuenta, vibra y se cierra la hoja. Si el servidor
-   * no lo deja (por ejemplo, quedó como único dueño), muestra su mensaje.
+   * Deja de cuidar la mascota de la hoja (ya confirmado en la hoja): sale de
+   * la cuenta del usuario, vibra y se cierra la hoja. Si el servidor no lo
+   * deja, muestra su mensaje.
    */
   const handleDesasignarme = async () => {
     if (!mascotaHoja) return;
@@ -155,7 +177,7 @@ export default function PerfilScreen() {
       Alert.alert('Listo', `${mascotaHoja.nombre} ya no está en tu cuenta.`);
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('No se pudo desasignar', e instanceof Error ? e.message : 'Intentá de nuevo.');
+      Alert.alert('No se pudo salir', e instanceof Error ? e.message : 'Intentá de nuevo.');
     } finally {
       setDesasignando(false);
     }
@@ -292,7 +314,7 @@ export default function PerfilScreen() {
           />
           <Text style={styles.seccionAyuda}>
             Personas asignadas a cada perrito. Los dueños pueden sumar a otras personas con un
-            código; los invitados, no. Cualquiera puede desasignarse.
+            código y quitar a los invitados; un invitado puede dejar de cuidarla cuando quiera.
           </Text>
           {mascotas.map((mascota) => (
             <CuidadoresMascota
@@ -302,6 +324,7 @@ export default function PerfilScreen() {
               usuario={usuario}
               onAsignar={abrirHoja('invitar')}
               onDesasignarme={abrirHoja('desasignar')}
+              onQuitar={pedirQuitar}
             />
           ))}
         </View>
@@ -360,42 +383,25 @@ export default function PerfilScreen() {
         {mascotaHoja && <InvitarForm key={mascotaHoja.id} mascota={mascotaHoja} />}
       </FormModal>
 
-      {/* Confirmar la desasignación. */}
+      {/* Confirmar que deja de cuidarla (solo invitados llegan acá). */}
       <FormModal
         visible={hoja === 'desasignar'}
-        titulo={`¿Desasignarte de ${mascotaHoja?.nombre ?? ''}?`}
+        titulo={`¿Dejar de cuidar a ${mascotaHoja?.nombre ?? ''}?`}
         onClose={cerrarHoja}
       >
-        {mascotaHoja && esUnicoDueno(mascotaHoja) ? (
-          <>
-            <Text style={styles.hojaTexto}>
-              Sos el único dueño de {mascotaHoja.nombre}. Para desasignarte, primero sumá a otra
-              persona como dueña con un código de asignación.
-            </Text>
-            <PrimaryButton title="Entendido" variant="outline" onPress={cerrarHoja} />
-          </>
-        ) : (
-          <>
-            <Text style={styles.hojaTexto}>
-              {mascotaHoja?.nombre} va a salir de tu cuenta junto con su carnet y sus turnos. Las
-              demás personas asignadas la siguen teniendo. Para volver, vas a necesitar un código nuevo.
-            </Text>
-            <PrimaryButton
-              title="Desasignarme"
-              icon="person-remove"
-              iconLeft
-              variant="danger"
-              onPress={handleDesasignarme}
-              loading={desasignando}
-            />
-            <PrimaryButton
-              title="Cancelar"
-              variant="outline"
-              onPress={cerrarHoja}
-              disabled={desasignando}
-            />
-          </>
-        )}
+        <Text style={styles.hojaTexto}>
+          {mascotaHoja?.nombre} va a salir de tu cuenta junto con su carnet y sus turnos. Su familia
+          la sigue teniendo. Para volver, vas a necesitar un código nuevo.
+        </Text>
+        <PrimaryButton
+          title="Dejar de cuidarla"
+          icon="person-remove"
+          iconLeft
+          variant="danger"
+          onPress={handleDesasignarme}
+          loading={desasignando}
+        />
+        <PrimaryButton title="Cancelar" variant="outline" onPress={cerrarHoja} disabled={desasignando} />
       </FormModal>
 
       {/* Cargar un código recibido. */}

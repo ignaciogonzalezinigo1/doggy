@@ -141,7 +141,8 @@ export type TipoCuidador = 'familia' | 'clinica' | 'paseador';
  * Rol de una persona sobre una mascota.
  * - dueno: puede asignar a otras personas (generar códigos de asignación).
  * - invitado: tiene la mascota en su cuenta pero no puede asignar a nadie.
- * Cualquiera de los dos puede desasignarse, salvo el último dueño.
+ * Un dueño puede quitar a un invitado y borrar la mascota; un invitado puede
+ * dejar de cuidarla. (El servidor también deja irse a un dueño si queda otro.)
  */
 export type RolMascota = 'dueno' | 'invitado';
 

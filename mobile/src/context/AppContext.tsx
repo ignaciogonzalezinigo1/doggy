@@ -139,6 +139,8 @@ type AppAcciones = {
   /** Acepta un código y devuelve la mascota que se sumó a la cuenta. */
   aceptarInvitacion: (token: string) => Promise<Mascota>;
   desasignarme: (mascotaId: number) => Promise<void>;
+  /** Saca a un invitado de una mascota (solo un dueño). */
+  quitarCuidador: (mascotaId: number, usuarioId: number) => Promise<void>;
 };
 
 type AppContextValue = AppDatos & AppAcciones;
@@ -552,6 +554,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTurnos((prev) => prev.filter((t) => t.mascotaId !== mascotaId));
   }, []);
 
+  /** Saca a un invitado de una mascota: deja de figurar entre sus cuidadores. */
+  const quitarCuidador = useCallback(async (mascotaId: number, usuarioId: number) => {
+    await cuidadoresService.quitarCuidador(mascotaId, usuarioId);
+    setCuidadores((prev) => prev.filter((c) => !(c.mascotaId === mascotaId && c.usuarioId === usuarioId)));
+  }, []);
+
   // Las acciones no cambian nunca (todas son useCallback estables): su contexto
   // no re-renderiza a nadie. El de todo (datos y acciones) cambia con los datos.
   const acciones = useMemo<AppAcciones>(
@@ -578,6 +586,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       verInvitacion,
       aceptarInvitacion,
       desasignarme,
+      quitarCuidador,
     }),
     [
       recargar,
@@ -602,6 +611,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       verInvitacion,
       aceptarInvitacion,
       desasignarme,
+      quitarCuidador,
     ],
   );
 
