@@ -117,6 +117,8 @@ type AppAcciones = {
   cerrarSesion: () => Promise<void>;
   agregarMascota: (datos: NuevaMascota) => Promise<Mascota>;
   editarMascota: (id: number, cambios: Partial<NuevaMascota>) => Promise<Mascota>;
+  /** Borra para siempre una mascota (solo un dueño) y saca de la cuenta todo lo suyo. */
+  eliminarMascota: (id: number) => Promise<void>;
   /** Busca cualquier mascota por el código de su QR (null si no existe). No toca el estado. */
   buscarMascotaPorCodigo: (codigo: string) => Promise<MascotaPublica | null>;
   crearReporte: (datos: NuevoReporte) => Promise<ReportePerdida>;
@@ -429,6 +431,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return actualizada;
   }, []);
 
+  /**
+   * Borra una mascota en el servidor (con su carnet, turnos, reportes,
+   * códigos y fotos) y saca de la cuenta todo lo suyo. Los demás asignados
+   * dejan de verla en su próxima carga.
+   */
+  const eliminarMascota = useCallback(async (id: number) => {
+    await mascotasService.borrarMascota(id);
+    setMascotas((prev) => prev.filter((m) => m.id !== id));
+    setCuidadores((prev) => prev.filter((c) => c.mascotaId !== id));
+    setRegistros((prev) => prev.filter((r) => r.mascotaId !== id));
+    setTurnos((prev) => prev.filter((t) => t.mascotaId !== id));
+    setReportes((prev) => prev.filter((r) => r.mascotaId !== id));
+  }, []);
+
   /** Publica un reporte de mascota perdida o encontrada. */
   const crearReporte = useCallback(async (datos: NuevoReporte) => {
     const nuevo = await reportesService.crearReporte(await conFotoSubida(datos, 'foto'));
@@ -571,6 +587,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cerrarSesion,
       agregarMascota,
       editarMascota,
+      eliminarMascota,
       buscarMascotaPorCodigo,
       crearReporte,
       editarReporte,
@@ -596,6 +613,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cerrarSesion,
       agregarMascota,
       editarMascota,
+      eliminarMascota,
       buscarMascotaPorCodigo,
       crearReporte,
       editarReporte,

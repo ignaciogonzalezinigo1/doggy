@@ -10,10 +10,12 @@
  * volvió a casa" si alguien la encontró).
  * Si alguien la reportó como encontrada, arriba de todo aparece
  * "¡Encontraron a …!" con "Ya volvió a casa".
+ * Al final, solo para un dueño, "Eliminar mascota" (en rojo) abre el doble
+ * chequeo (`EliminarMascota`); al borrarla se vuelve a Mis Mascotas.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -21,6 +23,7 @@ import { Avatar } from '@/components/Avatar';
 import { Chip } from '@/components/Chip';
 import { Cargando, EstadoVacio } from '@/components/EstadoVista';
 import { AvisoEncontrada } from '@/components/mascotas/AvisoEncontrada';
+import { EliminarMascota } from '@/components/mascotas/EliminarMascota';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { QrIdentificacion } from '@/components/QrIdentificacion';
 import { SectionCard } from '@/components/SectionCard';
@@ -50,7 +53,8 @@ const FOTO = 128;
  */
 export default function PerfilMascotaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { mascotas, registros, turnos, reportes, cargando, error, recargar } = useApp();
+  const { usuario, mascotas, registros, turnos, reportes, cuidadores, cargando, error, recargar } = useApp();
+  const [eliminarVisible, setEliminarVisible] = useState(false);
   const { cerrando, pedirCierre } = useCerrarReporte();
   const { recuperando, pedirRecuperacion } = useRecuperarMascota();
   const refresco = useRefresco();
@@ -73,6 +77,13 @@ export default function PerfilMascotaScreen() {
     () => (mascota ? reporteEncontrado(reportes, mascota.id) : undefined),
     [reportes, mascota],
   );
+  /** Personas asignadas a la mascota: si el usuario es dueño y quiénes más la tienen. */
+  const asignados = useMemo(
+    () => (mascota ? cuidadores.filter((c) => c.mascotaId === mascota.id) : []),
+    [cuidadores, mascota],
+  );
+  const esDueno = asignados.some((c) => c.usuarioId === usuario?.id && c.rol === 'dueno');
+  const otros = asignados.filter((c) => c.usuarioId !== usuario?.id);
 
   // --- Handlers ---
   /** Abre el formulario para editar los datos de la mascota. */
@@ -271,7 +282,32 @@ export default function PerfilMascotaScreen() {
             onPress={reportarPerdida}
           />
         )}
+
+        {esDueno && (
+          <PrimaryButton
+            title="Eliminar mascota"
+            icon="delete-outline"
+            iconLeft
+            variant="danger"
+            size="sm"
+            onPress={() => setEliminarVisible(true)}
+            style={styles.eliminar}
+          />
+        )}
       </ScrollView>
+
+      {esDueno && (
+        <EliminarMascota
+          visible={eliminarVisible}
+          mascota={mascota}
+          otros={otros}
+          onClose={() => setEliminarVisible(false)}
+          onEliminada={() => {
+            setEliminarVisible(false);
+            router.dismissTo('/mascotas');
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -427,5 +463,9 @@ const styles = StyleSheet.create({
   },
   perdidaBoton: {
     flex: 1,
+  },
+  eliminar: {
+    alignSelf: 'center',
+    marginTop: spacing.stackMd,
   },
 });

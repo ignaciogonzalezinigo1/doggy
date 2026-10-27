@@ -6,7 +6,7 @@
  * búsqueda por el código del QR, que trae los datos públicos de cualquiera.
  */
 import type { Mascota, MascotaPublica, NuevaMascota } from '@/types/models';
-import { conCuerpo, ErrorApi, pedirJson } from './http';
+import { conCuerpo, ErrorApi, pedirJson, pedirSinRespuesta } from './http';
 
 /**
  * Lista las mascotas a las que está asignado el usuario.
@@ -54,4 +54,15 @@ export async function crearMascota(datos: NuevaMascota): Promise<Mascota> {
  */
 export async function actualizarMascota(id: number, cambios: Partial<NuevaMascota>): Promise<Mascota> {
   return pedirJson<Mascota>(`/api/mascotas/${id}`, conCuerpo('PATCH', cambios));
+}
+
+/**
+ * Borra para siempre una mascota con su carnet, turnos, reportes, códigos de
+ * asignación y fotos. Solo lo puede hacer un dueño.
+ * Endpoint: DELETE /api/mascotas/:id -> 204 | 403 si no es dueño | 404
+ * @param id id de la mascota
+ * @throws si no es dueño o la mascota ya no existe
+ */
+export async function borrarMascota(id: number): Promise<void> {
+  await pedirSinRespuesta(`/api/mascotas/${id}`, { method: 'DELETE' });
 }
