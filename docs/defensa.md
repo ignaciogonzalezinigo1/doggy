@@ -99,8 +99,23 @@ Porque nunca se confía en el cliente: cualquiera puede mandar un pedido con `cu
 → `mobile/src/utils/validaciones.ts` y su espejo `doggy-backend/src/validaciones.ts`
 
 **¿Quién puede modificar qué?**
-Solo se escribe sobre mascotas a las que el usuario está asignado, como dueño o invitado. Solo un dueño genera códigos de asignación. Un reporte lo edita o cierra su autor o alguien asignado a la mascota. El único dueño no se puede desasignar (409).
+Solo se escribe sobre mascotas a las que el usuario está asignado, como dueño o invitado. Solo un dueño genera códigos de asignación. Un reporte lo edita o cierra su autor o alguien asignado a la mascota. El único dueño no se puede desasignar (409). Solo un dueño quita a un invitado o borra la mascota.
 → `doggy-backend/src/lib/asignaciones.ts`, `doggy-backend/src/rutas/mascotas.ts`
+
+**¿Cómo se quita a un invitado y quién puede?**
+Con `DELETE /api/mascotas/:id/cuidadores/:usuarioId`. Solo un dueño, y solo a un invitado: un invitado que quiere sacar a otro recibe 403, alguien sin asignar 403, sacar a otro dueño 403 (los dueños tienen los mismos permisos, ninguno manda sobre el otro) y una persona que no está asignada, 404. El invitado se va solo con "Dejar de cuidar a…", que reusa `DELETE …/cuidadores/me`. El chequeo y el borrado van en una transacción (`quitarCuidador`), así no se cruzan dos pedidos. En la app hay confirmación: "¿Quitar a {nombre}? Ya no va a poder ver ni editar a {mascota}.".
+→ `doggy-backend/src/rutas/mascotas.ts`, `mobile/src/components/perfil/CuidadoresMascota.tsx`, `mobile/app/(tabs)/perfil.tsx`
+
+**¿Por qué un dueño no se puede sacar a sí mismo desde la app?**
+Porque si es el único dueño la mascota quedaría sin nadie que la administre, y si hay otro, "irse" y "borrar" se confunden. La salida de un dueño es "Eliminar mascota". El servidor igual mantiene la regla de antes por `/me` (el último dueño recibe 409).
+
+**¿Qué pasa cuando se borra una mascota?**
+`DELETE /api/mascotas/:id`, solo un dueño (403 para un invitado o un tercero). En una transacción y en orden: las etiquetas de sus reportes, los reportes (activos y cerrados, de cualquier autor, porque hablan de esa mascota), el carnet, los turnos, los códigos de asignación, las asignaciones y la mascota. Recién después de confirmar se borran del disco las fotos (la de la mascota, las de las etiquetas y las de los reportes) y solo si ningún otro registro las usa; si un archivo no se puede borrar se loguea y la respuesta sigue siendo 204, porque la base ya quedó bien. No hizo falta tocar el schema. Las pruebas verifican que no queda ninguna fila relacionada ni los archivos.
+→ `doggy-backend/src/rutas/mascotas.ts`, `doggy-backend/scripts/probar.sh` (sección "Borrar mascota")
+
+**¿Por qué hay que escribir el nombre para borrar?**
+Porque no se puede deshacer y se lleva datos de otras personas (los invitados pierden el acceso): un doble chequeo evita borrarla con un toque sin querer. La hoja explica qué se borra y lista quiénes pierden el acceso. Después la app vuelve a Mis Mascotas; los demás la dejan de ver en su próxima carga (no hay push).
+→ `mobile/src/components/mascotas/EliminarMascota.tsx`
 
 **¿Cómo identifica el escáner a un perro ajeno si solo ves tus mascotas?**
 Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. Devuelve solo los datos públicos (nombre, edad en meses, raza, señas, foto, código) y el nombre del tutor, sin carnet ni otros datos del dueño.
@@ -113,8 +128,8 @@ Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. 
 Porque es el contacto que ve quien encuentra a la mascota cuando está perdida. Antes quedaba vacío hasta completar el perfil. El servidor lo valida y lo guarda en E.164 con la misma función que el perfil (`leerTelefono`).
 
 **¿Cuándo aparece WhatsApp y por qué?**
-Solo para celulares (`esCelular`, con el tipo de número de libphonenumber-js) y solo cuando la app ya puede ver el teléfono: quien escanea el QR lo ve si la mascota está perdida (el servidor no lo manda en otro caso), y el tutor ve el de quien la encontró en "¡Encontraron a …!" (el servidor solo se lo manda a los asignados). WhatsApp no abre ninguna puerta nueva: usa el mismo teléfono que ya era visible. El link se arma con una sola función, `enlaceWhatsApp` (`wa.me`), con el mensaje y la ubicación en Google Maps.
-→ `doggy/mobile/src/utils/enlaces.ts`, `doggy/mobile/src/components/BotonWhatsApp.tsx`
+Solo para celulares (`esCelular`, con el tipo de número de libphonenumber-js) y solo cuando la app ya puede ver el teléfono: quien escanea el QR lo ve si la mascota está perdida (el servidor no lo manda en otro caso), quien mira un perdido de otra familia en Perdidos ve el de quien lo publicó, y el tutor ve el de quien la encontró en "¡Encontraron a …!". Para contactar a la familia, "Escribirle por WhatsApp" es la acción principal y "o llamar" un link chico; con un fijo solo aparece el link (`ContactoDueno`). Nunca se le ofrece al dueño ni a un asignado. El link se arma con una sola función, `enlaceWhatsApp` (`wa.me`), y cada mensaje con otra: `mensajeLaTengo` (desde el QR: la tengo conmigo) y `mensajeLaVi` (desde Perdidos: la vi), con el link de Google Maps si hay ubicación.
+→ `doggy/mobile/src/utils/enlaces.ts`, `doggy/mobile/src/utils/mensajes.ts`, `doggy/mobile/src/components/ContactoDueno.tsx`
 
 **¿Por qué los teléfonos se guardan en E.164?**
 Para que cada número tenga una sola forma (`+5492994554060`) aunque se tipee como "2994554060", "0299 15 455-4060" o "+54 9 299 455-4060", para que los links `tel:` y de WhatsApp anden desde cualquier país y para validar que sea un número real. Lo hace libphonenumber-js (región AR). En pantalla se muestra siempre con la misma función, `formatearTelefono`: "+54 9 299 455-4060", "+54 9 11 4589-2310" o, un fijo, "+54 11 4777-3020".
@@ -172,6 +187,9 @@ No. La app los muestra de solo lectura y no los manda, y el servidor, si el repo
 
 **¿Quién ve el contacto de quien encontró a la mascota?**
 Solo las personas asignadas a esa mascota (dueños e invitados). En `GET /api/reportes`, los `encontrado` de una mascota asignada al usuario que publicó otra persona traen `contacto: { nombre, telefono }`; a nadie más se le manda. Así la familia puede llamar o escribir por WhatsApp a quien la encontró, desde "¡Encontraron a …!".
+
+**¿Y el teléfono de la familia en Perdidos no es un problema de privacidad?**
+No es más que lo que ya mostraba el QR: el teléfono de la familia es público mientras la mascota está perdida, porque es justo cuando hace falta. Los `perdido` traen `contacto` de quien los publicó solo para quien no está asignado a la mascota; cuando se cierra el reporte, deja de verse.
 → `doggy-backend/src/rutas/reportes.ts` (GET), `doggy/mobile/src/components/mascotas/AvisoEncontrada.tsx`
 
 **¿Por qué el código de asignación es de un solo uso?**
@@ -246,7 +264,11 @@ En las pantallas con datos compartidos, deslizar hacia abajo llama a `refrescar`
 → `mobile/src/hooks/useRefresco.tsx`, `mobile/src/context/AppContext.tsx`
 
 **¿Qué hicieron por el rendimiento?**
-Primero se midió. Lo que más pesa es el modo desarrollo de Expo Go (JavaScript sin minificar y verificaciones de desarrollo): una build de producción es mucho más rápida. En el código: `expo-image` para las fotos (caché y decodificado al tamaño en pantalla, en vez de fotos de 800 px en avatares de 40 px), un contexto aparte para las acciones (`useAcciones`, que no cambia, así las cards que solo borran no se redibujan con cada dato) y `memo` en las cards de las listas. La carga inicial ya era en paralelo y los endpoints responden en 3 a 12 ms.
+En dos lotes, y en los dos primero se midió.
+
+*Segundo lote ("se traba después de refrescar"):* cada refresco guardaba arrays nuevos de todo aunque no cambiara nada, y `refrescando` vivía en el mismo contexto que los datos: las cuatro tabs (quedan montadas), todas las cards y todos los pines se volvían a dibujar dos o tres veces. Ahora cada lista conserva los objetos iguales (`conservarIguales`), así un refresco sin cambios no toca el estado; `refrescando` tiene su propio contexto (`useRefrescando`); un refresco en curso no se vuelve a lanzar; las tabs y el stack de Mascotas van con `freezeOnBlur` (lo que no se ve no se redibuja); `PetCard` dejó de leer el contexto (el menú llega por prop: antes su `memo` no servía), y los markers van con `memo` y props estables (`tracksViewChanges` ya se apagaba a los 600 ms). Lo propio de Expo Go (JavaScript sin minificar, chequeos de desarrollo, mapas y fotos más lentos al primer uso) no se arregla en el código: se ve en una build de release.
+
+*Primer lote:* Lo que más pesa es el modo desarrollo de Expo Go (JavaScript sin minificar y verificaciones de desarrollo): una build de producción es mucho más rápida. En el código: `expo-image` para las fotos (caché y decodificado al tamaño en pantalla, en vez de fotos de 800 px en avatares de 40 px), un contexto aparte para las acciones (`useAcciones`, que no cambia, así las cards que solo borran no se redibujan con cada dato) y `memo` en las cards de las listas. La carga inicial ya era en paralelo y los endpoints responden en 3 a 12 ms.
 → `mobile/src/components/Avatar.tsx`, `mobile/src/context/AppContext.tsx`
 
 **¿Por qué el visor tiene su propio `GestureHandlerRootView`?**
@@ -311,7 +333,9 @@ Antes: `npm run db:reset` en `doggy-backend` (deja la demo limpia y las fechas a
 2. **Sofía**, Perdidos: mapa con los reportes en Palermo, Belgrano, Villa Urquiza, Caballito, Almagro, Núñez y Saavedra; filtrar perdidos y encontrados. Rocky tiene un solo pin, teal con un tilde: "¡La encontraron!".
 3. **Marcos** (`marcos.diaz@mail.com`). Mis Mascotas: "¡Encontraron a Rocky!" con el contacto de Martín. En Perdidos, el detalle de Rocky muestra dónde y cuándo lo encontraron. "Ya volvió a casa": se cierran el perdido y el encontrado ("Devuelta a su familia") y Rocky sale del mapa.
 4. **Julián** (`julian.fernandez@mail.com`). Perfil de Pipa: está reportada como perdida; "Descargar QR" o "Compartir QR" para tener la imagen.
-5. **Lucía** (`lucia.gomez@mail.com`). "Encontré una mascota" → escanear el QR de Pipa (con la cámara o desde la imagen): tarjeta de solo lectura con "Su familia: Julián", su celular y "Avisar por WhatsApp" (con la ubicación en Google Maps). Escanear el QR de Luna: solo "Su familia: Sofía", sin teléfono, porque no está perdida.
+5. **Lucía** (`lucia.gomez@mail.com`). "Encontré una mascota" → escanear el QR de Pipa (con la cámara o desde la imagen): tarjeta de solo lectura con "Su familia: Julián" y "Escribirle por WhatsApp" con el mensaje armado ("¡Hola Julián! Soy Lucía. Encontré a Pipa…", con la ubicación en Google Maps) y "o llamar". En Perdidos, el detalle de Pipa ofrece lo mismo con el mensaje "Vi en Doggy el aviso de Pipa…". Escanear el QR de Luna: solo "Su familia: Sofía", sin teléfono, porque no está perdida.
 6. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada.
 7. **Vet. San Roque** (`contacto@vetsanroque.com`): teléfono fijo, así que en sus avisos no aparece WhatsApp.
-8. **Registro** (o Perfil → "Editar datos personales"): el teléfono tiene el +54 fijo. Pegar "+54 9 299 455 4060": queda "299 455-4060" y aparece "Ya agregamos el +54, escribí solo tu número". Probar "+1 202 555 0143": "Solo se aceptan teléfonos de Argentina."
+8. **Sofía**, Perfil → Familia y Cuidadores → Roco: "Quitar" en Marcos (invitado) → confirmar. Con **Marcos**, Roco ya no aparece al refrescar. Con la **Vet. San Roque**, en Luna: "Dejar de cuidar a Luna".
+9. **Sofía**, una mascota de prueba (darla de alta antes): perfil → "Eliminar mascota" → escribir el nombre → "Eliminar para siempre": vuelve a Mis Mascotas y no está más.
+10. **Registro** (o Perfil → "Editar datos personales"): el teléfono tiene el +54 fijo. Pegar "+54 9 299 455 4060": queda "299 455-4060" y aparece "Ya agregamos el +54, escribí solo tu número". Probar "+1 202 555 0143": "Solo se aceptan teléfonos de Argentina."
