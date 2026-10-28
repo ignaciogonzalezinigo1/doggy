@@ -1,87 +1,125 @@
 /**
- * Aviso destacado "¡Encontraron a {nombre}!" para una mascota del usuario que
- * alguien reportó como encontrada (por ejemplo, escaneando su chapita).
- *
- * Muestra dónde y cuándo la encontraron, la descripción que dejó quien la
- * encontró y, si viene, su contacto con un link para llamarlo y, si es un
- * celular, "Escribirle por WhatsApp" con el agradecimiento ya escrito
- * (`mensajeGracias`, sin ubicación). "Ya volvió a casa" pide confirmación y cierra el
- * reporte (y el de perdida, si había).
- * Se muestra en Mis Mascotas y en el perfil de la mascota.
+ * Aviso para la familia de una mascota que alguien encontró. Se muestra en
+ * Mis Mascotas, en el perfil de la mascota y en el detalle del reporte en
+ * Perdidos, solo a quienes están asignados a ella. Tiene dos formas:
+ * - reencuentro (la mascota tenía un perdido activo): "¡Encontraron a
+ *   {nombre}!" y "Ya volvió a casa", que cierra el perdido y los encontrados;
+ * - caso dudoso (no estaba perdida, alguien escaneó su QR): "Alguien
+ *   encontró a {nombre}. ¿Se perdió {nombre}?" con "Sí, se perdió" (crea el
+ *   perdido con el lugar del encontrado y pasa a reencuentro) y "No, está
+ *   conmigo" (cierra el aviso).
+ * En los dos muestra la foto que sacó quien la encontró, dónde y cuándo, su
+ * descripción y, por cada persona que avisó, "Escribirle por WhatsApp" con el
+ * agradecimiento ya escrito (`mensajeGracias`, sin ubicación) y "o llamar".
+ * El contacto lo manda el servidor solo a los asignados a la mascota.
+ * Las acciones están en `useRecuperarMascota`.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
+import { TEXTO_ESTA_CONMIGO, TEXTO_SE_PERDIO, useRecuperarMascota } from '@/hooks/useRecuperarMascota';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
-import type { ReportePerdida } from '@/types/models';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
 import { botonCierre } from '@/utils/etiquetas';
 import { mensajeGracias } from '@/utils/mensajes';
-import { esCelular } from '@/utils/telefonos';
-import { BotonWhatsApp } from '../BotonWhatsApp';
-import { LinkTelefono } from '../LinkTelefono';
+import type { AvisoMascota } from '@/utils/selectores';
+import { Avatar } from '../Avatar';
+import { ContactoDueno } from '../ContactoDueno';
 import { PrimaryButton } from '../PrimaryButton';
 
 type IconName = ComponentProps<typeof MaterialIcons>['name'];
 
 type Props = {
-  /** Reporte "encontrado" de la mascota. */
-  reporte: ReportePerdida;
-  /** Pide confirmación y cierra los reportes. */
-  onRecuperada: (reporte: ReportePerdida) => void;
-  /** true mientras se cierran los reportes. */
-  recuperando?: boolean;
+  /** Aviso de la mascota (ver `avisoDeMascota`). */
+  aviso: AvisoMascota;
+  /** Se llama cuando la familia respondió y salió bien (el detalle de Perdidos cierra su hoja). */
+  onRespondido?: () => void;
 };
 
 /**
  * Aviso de mascota encontrada.
  * @param props ver `Props`
- * @returns la card con los datos del reporte y "Ya volvió a casa"
+ * @returns la card con el hallazgo, los contactos y las respuestas de la familia
  */
-export function AvisoEncontrada({ reporte, onRecuperada, recuperando = false }: Props) {
+export function AvisoEncontrada({ aviso, onRespondido }: Props) {
   const { usuario } = useApp();
-  const cuando = `${tiempoTranscurrido(reporte.fecha)} · ${formatearFecha(reporte.fecha)} ${formatearHora(reporte.fecha)}`;
+  const { recuperando, pedirRecuperacion, confirmarPerdida, pedirDescarte } = useRecuperarMascota(onRespondido);
+  const [ultimo] = aviso.encontrados;
+  const reencuentro = aviso.tipo === 'reencuentro';
+  const cuando = `${tiempoTranscurrido(ultimo.fecha)} · ${formatearFecha(ultimo.fecha)} ${formatearHora(ultimo.fecha)}`;
+  const contactos = aviso.encontrados.filter((e) => e.contacto);
 
   return (
-    <View style={styles.card} accessibilityLiveRegion="polite">
+    <View style={[styles.card, reencuentro ? styles.cardReencuentro : styles.cardDudoso]} accessibilityLiveRegion="polite">
       <View style={styles.header}>
-        <MaterialIcons name="celebration" size={sizes.iconMd} color={colors.primary} />
-        <Text style={styles.titulo} accessibilityRole="header">
-          ¡Encontraron a {reporte.nombre}!
-        </Text>
+        <MaterialIcons
+          name={reencuentro ? 'celebration' : 'help-outline'}
+          size={sizes.iconMd}
+          color={reencuentro ? colors.verde : colors.primary}
+        />
+        <View style={styles.tituloBloque}>
+          <Text style={[styles.titulo, reencuentro && styles.tituloReencuentro]} accessibilityRole="header">
+            {reencuentro ? `¡Encontraron a ${ultimo.nombre}!` : `Alguien encontró a ${ultimo.nombre}`}
+          </Text>
+          {!reencuentro && <Text style={styles.pregunta}>¿Se perdió {ultimo.nombre}?</Text>}
+        </View>
       </View>
 
-      <Dato icono="location-on" etiqueta="Dónde" valor={reporte.zona} />
-      <Dato icono="schedule" etiqueta="Cuándo" valor={cuando} />
-      <Text style={styles.descripcion}>{reporte.descripcion}</Text>
+      <View style={styles.hallazgo}>
+        <Avatar foto={ultimo.foto} nombre={ultimo.nombre} size={sizes.avatarMd} />
+        <View style={styles.datos}>
+          <Dato icono="location-on" etiqueta="Dónde" valor={ultimo.zona} />
+          <Dato icono="schedule" etiqueta="Cuándo" valor={cuando} />
+        </View>
+      </View>
+      <Text style={styles.descripcion}>{ultimo.descripcion}</Text>
 
-      {reporte.contacto && (
-        <View style={styles.contacto}>
-          <Text style={styles.contactoTexto}>
-            Avisó {reporte.contacto.nombre}. Llamá para coordinar la vuelta:
-          </Text>
-          <LinkTelefono telefono={reporte.contacto.telefono} nombre={reporte.contacto.nombre} />
-          {esCelular(reporte.contacto.telefono) && (
-            <BotonWhatsApp
-              titulo="Escribirle por WhatsApp"
-              telefono={reporte.contacto.telefono}
+      {contactos.map((encontrado) =>
+        encontrado.contacto ? (
+          <View key={encontrado.id} style={styles.contacto}>
+            <Text style={styles.contactoTexto}>Avisó {encontrado.contacto.nombre}. Coordiná la vuelta:</Text>
+            <ContactoDueno
+              telefono={encontrado.contacto.telefono}
+              nombre={encontrado.contacto.nombre}
               armarMensaje={() =>
-                mensajeGracias({ para: reporte.contacto?.nombre, yo: usuario?.nombre, mascota: reporte.nombre })
+                mensajeGracias({ para: encontrado.contacto?.nombre, yo: usuario?.nombre, mascota: encontrado.nombre })
               }
             />
-          )}
-        </View>
+          </View>
+        ) : null,
       )}
 
-      <PrimaryButton
-        title={botonCierre(true).texto}
-        icon={botonCierre(true).icono}
-        iconLeft
-        onPress={() => onRecuperada(reporte)}
-        loading={recuperando}
-      />
+      {reencuentro ? (
+        <PrimaryButton
+          title={botonCierre(true).texto}
+          icon={botonCierre(true).icono}
+          iconLeft
+          onPress={() => pedirRecuperacion(ultimo)}
+          loading={recuperando}
+        />
+      ) : (
+        <View style={styles.respuestas}>
+          <PrimaryButton
+            title={TEXTO_SE_PERDIO}
+            icon="campaign"
+            iconLeft
+            onPress={() => confirmarPerdida(ultimo)}
+            loading={recuperando}
+            style={styles.respuesta}
+          />
+          <PrimaryButton
+            title={TEXTO_ESTA_CONMIGO}
+            icon="home"
+            iconLeft
+            variant="outline"
+            onPress={() => pedirDescarte(ultimo)}
+            disabled={recuperando}
+            style={styles.respuesta}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -114,19 +152,44 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: sizes.borderWidth,
+    ...shadows.level1,
+  },
+  cardReencuentro: {
+    borderColor: colors.verde,
+    backgroundColor: colors.verde10,
+  },
+  cardDudoso: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryFixed,
-    ...shadows.level1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
+  tituloBloque: {
+    flex: 1,
+    gap: spacing.xs,
+  },
   titulo: {
     ...typography.headlineMd,
     color: colors.primary,
+  },
+  tituloReencuentro: {
+    color: colors.verde,
+  },
+  pregunta: {
+    ...typography.bodyMd,
+    color: colors.onSurface,
+  },
+  hallazgo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.stackSm,
+  },
+  datos: {
     flex: 1,
+    gap: spacing.xs,
   },
   dato: {
     flexDirection: 'row',
@@ -153,5 +216,11 @@ const styles = StyleSheet.create({
   contactoTexto: {
     ...typography.bodySm,
     color: colors.onSurface,
+  },
+  respuestas: {
+    gap: spacing.sm,
+  },
+  respuesta: {
+    alignSelf: 'stretch',
   },
 });

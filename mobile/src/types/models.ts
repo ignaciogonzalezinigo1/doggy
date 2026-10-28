@@ -95,7 +95,11 @@ export type EstadoReporte = 'perdido' | 'encontrado';
  *   perdido y el encontrado de la mascota).
  * - aparecio: se cerró un perdido sin ningún encontrado ("Ya apareció").
  */
-export type ResultadoReporte = 'devuelta' | 'aparecio';
+/**
+ * Cómo terminó un reporte cerrado: devuelta (reencuentro), aparecio (perdido
+ * sin encontrado) o descartado ("No, está conmigo": no se había perdido).
+ */
+export type ResultadoReporte = 'devuelta' | 'aparecio' | 'descartado';
 
 /** Reporte de un perro perdido o encontrado en la vía pública. */
 export type ReportePerdida = {
@@ -125,10 +129,9 @@ export type ReportePerdida = {
   /** Datos extra del tutor: ropa que tenía puesta, arnés, cómo reacciona, etc. */
   infoAdicional?: string;
   /**
-   * A quién avisarle, en E.164. En un "encontrado" de una mascota del usuario
-   * que publicó otra persona: quién la encontró. En un "perdido" de una
-   * mascota a la que el usuario no está asignado: la familia que la busca
-   * (quien publicó el reporte). En los demás no viene.
+   * A quién avisarle, en E.164. Solo en un "encontrado" vinculado a una
+   * mascota: a la familia (asignados), quién la encontró; a quien la encontró
+   * (el autor), la familia. En los demás no viene.
    */
   contacto?: { nombre: string; telefono: string };
   /** Cuándo se cerró. Solo viene en un reporte cerrado (la respuesta del PATCH que lo cierra). */
@@ -188,14 +191,16 @@ export type NuevoRegistro = Omit<RegistroSanitario, 'id'>;
 export type NuevoTurno = Omit<Turno, 'id'>;
 /**
  * Reporte nuevo. La app ya no carga etiquetas: solo se muestran las que ya
- * tenían. Con `mascotaId`, el nombre y la raza no hace falta mandarlos: el
- * servidor los toma de la mascota (y los ignora si vienen).
+ * tenían. Con mascota, el nombre y la raza no hace falta mandarlos: el
+ * servidor los toma de ella (y los ignora si vienen). Un encontrado se
+ * vincula con el `codigo` del QR de la chapita o, desde un perdido del mapa,
+ * con su `mascotaId`.
  */
 export type NuevoReporte = Omit<
   ReportePerdida,
   'id' | 'autorId' | 'etiquetas' | 'contacto' | 'nombre' | 'raza'
 > &
-  Partial<Pick<ReportePerdida, 'nombre' | 'raza'>>;
+  Partial<Pick<ReportePerdida, 'nombre' | 'raza'>> & { codigo?: string };
 /**
  * Cambios de un reporte publicado (PATCH): lo que no viene no se toca y
  * `infoAdicional: null` la borra (un `undefined` no viaja en el JSON).

@@ -1,12 +1,12 @@
 /**
  * Card de un reporte de mascota perdida o encontrada: foto con el estado
  * encima, nombre, hace cuánto, zona (con el radio de búsqueda si lo reportó
- * su tutor) y chips (raza y etiquetas). Un perdido que alguien ya encontró
- * muestra, en lugar de los chips, "¡La encontraron! Esperando que su familia
- * la recupere".
+ * su tutor) y chips (raza y etiquetas). Un reencuentro lleva el estado
+ * "REENCUENTRO" en verde y, en lugar de los chips, "¡Reencuentro! Esperando
+ * que vuelva con su familia".
  * Se usa en el carrusel debajo del mapa y en el modo lista.
- * Si viene `contacto` (un perdido de otra familia), abajo suma "Escribirle
- * por WhatsApp" con el link "o llamar" (`ContactoDueno`).
+ * Si viene `contacto` (la familia, solo para quien publicó que la encontró),
+ * abajo suma "Escribirle por WhatsApp" con el link "o llamar" (`ContactoDueno`).
  */
 import { memo } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -16,20 +16,20 @@ import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-n
 import { fuenteFoto } from '@/data/fotos';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
-import { TEXTO_HALLAZGO } from '@/utils/etiquetas';
+import { DETALLE_REENCUENTRO, TEXTO_REENCUENTRO } from '@/utils/etiquetas';
 import { tiempoTranscurrido } from '@/utils/fechas';
 import { textoRadio } from '@/utils/mapa';
 import { ContactoDueno } from '../ContactoDueno';
 
 type Props = {
   reporte: ReportePerdida;
-  /** true si es un perdido con un encontrado activo (ver `hallazgosPorPerdido`). */
-  encontrada?: boolean;
+  /** true si el reporte representa un reencuentro (ver `reencuentrosPorReporte`). */
+  reencuentro?: boolean;
   onPress: (reporte: ReportePerdida) => void;
   /** Resalta la card (la que está centrada en el mapa). */
   seleccionado?: boolean;
   style?: StyleProp<ViewStyle>;
-  /** Familia a la que se le puede escribir (ver `contactoDeLaFamilia`). */
+  /** Familia a la que le escribe quien la encontró (ver `contactoDeLaFamilia`). */
   contacto?: ReportePerdida['contacto'];
   /** Arma el mensaje de WhatsApp para este reporte (estable, para no romper el memo). */
   armarMensaje?: (reporte: ReportePerdida) => string;
@@ -47,7 +47,7 @@ const MAX_CHIPS = 2;
  */
 function ReporteCardBase({
   reporte,
-  encontrada = false,
+  reencuentro = false,
   onPress,
   seleccionado = false,
   style,
@@ -62,7 +62,7 @@ function ReporteCardBase({
     <Pressable
       onPress={() => onPress(reporte)}
       accessibilityRole="button"
-      accessibilityLabel={`${perdido ? 'Perdido' : 'Encontrado'}: ${reporte.nombre}, ${reporte.zona}${encontrada ? `. ${TEXTO_HALLAZGO}` : ''}`}
+      accessibilityLabel={`${reencuentro ? TEXTO_REENCUENTRO : perdido ? 'Perdido' : 'Encontrado'}: ${reporte.nombre}, ${reporte.zona}`}
       style={({ pressed }) => [
         styles.card,
         seleccionado && styles.seleccionado,
@@ -80,8 +80,13 @@ function ReporteCardBase({
               <MaterialIcons name="pets" size={sizes.iconLg} color={colors.tealLight} />
             </View>
           )}
-          <View style={[styles.estado, perdido ? styles.estadoPerdido : styles.estadoEncontrado]}>
-            <Text style={styles.estadoTexto}>{perdido ? 'PERDIDO' : 'ENCONTRADO'}</Text>
+          <View
+            style={[
+              styles.estado,
+              reencuentro ? styles.estadoReencuentro : perdido ? styles.estadoPerdido : styles.estadoEncontrado,
+            ]}
+          >
+            <Text style={styles.estadoTexto}>{reencuentro ? 'REENCUENTRO' : perdido ? 'PERDIDO' : 'ENCONTRADO'}</Text>
           </View>
         </View>
 
@@ -100,11 +105,11 @@ function ReporteCardBase({
             </Text>
           </View>
           {/* La marca va en el lugar de los chips, así la card no crece. */}
-          {encontrada ? (
+          {reencuentro ? (
             <View style={styles.hallazgo}>
-              <MaterialIcons name="where-to-vote" size={16} color={colors.primary} />
+              <MaterialIcons name="where-to-vote" size={16} color={colors.verde} />
               <Text style={styles.hallazgoTexto} numberOfLines={2}>
-                {TEXTO_HALLAZGO}
+                {`${TEXTO_REENCUENTRO} ${DETALLE_REENCUENTRO}`}
               </Text>
             </View>
           ) : (
@@ -186,6 +191,9 @@ const styles = StyleSheet.create({
   estadoEncontrado: {
     backgroundColor: colors.primaryContainer,
   },
+  estadoReencuentro: {
+    backgroundColor: colors.verde,
+  },
   estadoTexto: {
     ...typography.labelSm,
     fontSize: 10,
@@ -256,7 +264,7 @@ const styles = StyleSheet.create({
   },
   hallazgoTexto: {
     ...typography.labelSm,
-    color: colors.primary,
+    color: colors.verde,
     flexShrink: 1,
   },
 });

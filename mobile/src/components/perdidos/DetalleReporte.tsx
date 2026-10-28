@@ -6,14 +6,18 @@
  * etiquetas, cuándo y dónde (con el radio de búsqueda si lo marcó su tutor),
  * descripción o señas particulares e información adicional (ropa, arnés,
  * cómo reacciona). "Ver en el mapa" cierra la hoja y centra el mapa en el reporte.
- * Si alguien ya encontró a la mascota perdida (un encontrado activo de la
- * misma mascota), muestra "¡La encontraron! Esperando que su familia la
- * recupere" con el lugar y la hora del hallazgo: en el mapa no tiene pin propio.
- * Si la mascota perdida es del usuario (o él publicó el reporte), suma
- * "Editar reporte" y "Ya apareció" ("Ya volvió a casa" si la encontraron), que
- * cierra el reporte y lo saca del mapa.
- * Si es un perdido de otra familia (viene `contacto`), lo primero después de
- * la foto es "¿La viste?" con "Escribirle por WhatsApp" y "o llamar".
+ * Un reencuentro (el reporte es el encontrado más reciente de una mascota
+ * perdida) lleva el estado REENCUENTRO y un bloque verde con cuándo y dónde
+ * se perdió; los datos de abajo son los del hallazgo (dónde está ahora).
+ * Si la mascota es del usuario (dueño o invitado) y alguien la encontró,
+ * muestra el mismo aviso que Mis Mascotas (`AvisoEncontrada`): el contacto
+ * de quien la encontró y "Ya volvió a casa", o "Sí, se perdió" y "No, está
+ * conmigo". Si el perdido es del usuario (o él lo publicó), suma "Editar
+ * reporte" y "Ya apareció", que lo cierra y lo saca del mapa.
+ * Si el usuario publicó que la encontró (viene `contacto`), lo primero
+ * después de la foto es escribirle a la familia por WhatsApp o llamar.
+ * Quien ve el perdido de otra familia no tiene contacto: tiene "Encontré a
+ * {nombre}", que abre el formulario de encontrado vinculado a esa mascota.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState, type ComponentProps } from 'react';
@@ -22,13 +26,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fuenteFoto } from '@/data/fotos';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
-import { botonCierre, TEXTO_HALLAZGO } from '@/utils/etiquetas';
+import { botonCierre, TEXTO_REENCUENTRO } from '@/utils/etiquetas';
 import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fechas';
 import { textoRadio } from '@/utils/mapa';
+import type { AvisoMascota, Reencuentro } from '@/utils/selectores';
 import { Avatar } from '../Avatar';
 import { Chip } from '../Chip';
 import { ContactoDueno } from '../ContactoDueno';
 import { FormModal } from '../FormModal';
+import { AvisoEncontrada } from '../mascotas/AvisoEncontrada';
 import { PrimaryButton } from '../PrimaryButton';
 import { VisorFoto } from '../VisorFoto';
 
@@ -38,8 +44,10 @@ type Props = {
   visible: boolean;
   /** Reporte a mostrar. Se mantiene mientras la hoja se cierra, para que no quede vacía. */
   reporte: ReportePerdida | null;
-  /** Encontrado activo de la mascota de un perdido (ver `hallazgoDe`), si alguien ya la encontró. */
-  hallazgo?: ReportePerdida;
+  /** Reencuentro que representa el reporte (ver `reencuentrosPorReporte`), si es uno. */
+  reencuentro?: Reencuentro;
+  /** Aviso para la familia, si la mascota es del usuario y alguien la encontró (ver `avisoDeMascota`). */
+  aviso?: AvisoMascota;
   /** true si el reporte lo publicó el usuario logueado. */
   esPropio: boolean;
   onClose: () => void;
@@ -53,10 +61,14 @@ type Props = {
   onYaAparecio?: (reporte: ReportePerdida) => void;
   /** true mientras se cierra el reporte. */
   cerrando?: boolean;
-  /** Familia a la que se le puede escribir (ver `contactoDeLaFamilia`). */
+  /** Familia a la que le escribe quien la encontró (ver `contactoDeLaFamilia`). */
   contacto?: ReportePerdida['contacto'];
   /** Arma el mensaje de WhatsApp para el reporte. */
   armarMensaje?: (reporte: ReportePerdida) => string;
+  /** Perdido sobre el que el usuario puede avisar "Encontré a …" (ver `perdidoParaAvisar`). */
+  perdidoParaAvisar?: ReportePerdida;
+  /** Abre el formulario de encontrado vinculado a la mascota de ese perdido. */
+  onEncontre?: (perdido: ReportePerdida) => void;
 };
 
 /**
@@ -67,7 +79,8 @@ type Props = {
 export function DetalleReporte({
   visible,
   reporte,
-  hallazgo,
+  reencuentro,
+  aviso,
   esPropio,
   onClose,
   onVerEnMapa,
@@ -77,6 +90,8 @@ export function DetalleReporte({
   cerrando = false,
   contacto,
   armarMensaje,
+  perdidoParaAvisar,
+  onEncontre,
 }: Props) {
   if (!reporte) return null;
 
@@ -85,7 +100,7 @@ export function DetalleReporte({
   return (
     <FormModal visible={visible} titulo={reporte.nombre} onClose={onClose}>
       {/* key: al cambiar de reporte, el visor arranca cerrado. */}
-      <FotoReporte key={reporte.id} reporte={reporte} />
+      <FotoReporte key={reporte.id} reporte={reporte} reencuentro={!!reencuentro} />
 
       {esPropio && (
         <View style={styles.propio}>
@@ -96,7 +111,10 @@ export function DetalleReporte({
 
       {contacto && armarMensaje && (
         <View style={styles.contacto}>
-          <Text style={styles.contactoTexto}>¿La viste? Avisale a {contacto.nombre}, de su familia.</Text>
+          <Text style={styles.contactoTexto}>
+            Avisaste que encontraste a {reporte.nombre}. Escribile a {contacto.nombre}, de su familia, para
+            coordinar la vuelta.
+          </Text>
           <ContactoDueno
             telefono={contacto.telefono}
             nombre={contacto.nombre}
@@ -105,20 +123,22 @@ export function DetalleReporte({
         </View>
       )}
 
-      {hallazgo && (
+      {aviso && <AvisoEncontrada aviso={aviso} onRespondido={onClose} />}
+
+      {reencuentro && (
         <View style={styles.hallazgo} accessibilityLiveRegion="polite">
           <View style={styles.hallazgoTitulo}>
-            <MaterialIcons name="where-to-vote" size={sizes.iconMd} color={colors.primary} />
+            <MaterialIcons name="where-to-vote" size={sizes.iconMd} color={colors.verde} />
             <Text style={styles.hallazgoTexto} accessibilityRole="header">
-              {TEXTO_HALLAZGO}
+              {`${TEXTO_REENCUENTRO} Alguien encontró a ${reporte.nombre}.`}
             </Text>
           </View>
-          <Dato icono="location-on" etiqueta="Dónde la encontraron" valor={hallazgo.zona} />
           <Dato
             icono="schedule"
-            etiqueta="Cuándo"
-            valor={`${tiempoTranscurrido(hallazgo.fecha)} · ${formatearFecha(hallazgo.fecha)} ${formatearHora(hallazgo.fecha)}`}
+            etiqueta="Se perdió"
+            valor={`${tiempoTranscurrido(reencuentro.perdido.fecha)} · ${formatearFecha(reencuentro.perdido.fecha)} ${formatearHora(reencuentro.perdido.fecha)}`}
           />
+          <Dato icono="location-on" etiqueta="Última vez vista" valor={reencuentro.perdido.zona} />
         </View>
       )}
 
@@ -160,6 +180,16 @@ export function DetalleReporte({
         onPress={() => onVerEnMapa(reporte)}
       />
 
+      {/* Quien la encontró en la calle avisa desde el perdido, ya vinculado a la mascota. */}
+      {perdidoParaAvisar && onEncontre && (
+        <PrimaryButton
+          title={`Encontré a ${perdidoParaAvisar.nombre}`}
+          icon="volunteer-activism"
+          iconLeft
+          onPress={() => onEncontre(perdidoParaAvisar)}
+        />
+      )}
+
       {/* Acciones del tutor: corregir el reporte o sacarlo porque ya apareció. */}
       {puedeGestionar && (
         <View style={styles.gestion}>
@@ -176,8 +206,8 @@ export function DetalleReporte({
           )}
           {onYaAparecio && (
             <PrimaryButton
-              title={botonCierre(!!hallazgo).texto}
-              icon={botonCierre(!!hallazgo).icono}
+              title={botonCierre(false).texto}
+              icon={botonCierre(false).icono}
               iconLeft
               onPress={() => onYaAparecio(reporte)}
               loading={cerrando}
@@ -192,12 +222,13 @@ export function DetalleReporte({
 
 /**
  * Foto del reporte: circular y centrada, como en el perfil de la mascota,
- * con el estado (PERDIDO / ENCONTRADO) debajo. Si hay foto, tocarla la abre
- * grande y completa en el visor a pantalla completa.
+ * con el estado (PERDIDO / ENCONTRADO / REENCUENTRO) debajo. Si hay foto,
+ * tocarla la abre grande y completa en el visor a pantalla completa.
  * @param props.reporte reporte de la foto
+ * @param props.reencuentro true si el reporte representa un reencuentro
  * @returns la foto con el estado
  */
-function FotoReporte({ reporte }: { reporte: ReportePerdida }) {
+function FotoReporte({ reporte, reencuentro }: { reporte: ReportePerdida; reencuentro: boolean }) {
   const [visorVisible, setVisorVisible] = useState(false);
   const perdido = reporte.estado === 'perdido';
   const tieneFoto = !!fuenteFoto(reporte.foto);
@@ -232,8 +263,13 @@ function FotoReporte({ reporte }: { reporte: ReportePerdida }) {
       ) : (
         avatar
       )}
-      <View style={[styles.estado, perdido ? styles.estadoPerdido : styles.estadoEncontrado]}>
-        <Text style={styles.estadoTexto}>{perdido ? 'PERDIDO' : 'ENCONTRADO'}</Text>
+      <View
+        style={[
+          styles.estado,
+          reencuentro ? styles.estadoReencuentro : perdido ? styles.estadoPerdido : styles.estadoEncontrado,
+        ]}
+      >
+        <Text style={styles.estadoTexto}>{reencuentro ? 'REENCUENTRO' : perdido ? 'PERDIDO' : 'ENCONTRADO'}</Text>
       </View>
 
       <VisorFoto
@@ -323,6 +359,9 @@ const styles = StyleSheet.create({
   estadoEncontrado: {
     backgroundColor: colors.primaryContainer,
   },
+  estadoReencuentro: {
+    backgroundColor: colors.verde,
+  },
   estadoTexto: {
     ...typography.labelSm,
     color: colors.white,
@@ -343,8 +382,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: sizes.borderWidth,
-    borderColor: colors.tealLight,
-    backgroundColor: colors.tealLight10,
+    borderColor: colors.verde,
+    backgroundColor: colors.verde10,
   },
   hallazgoTitulo: {
     flexDirection: 'row',
@@ -353,7 +392,7 @@ const styles = StyleSheet.create({
   },
   hallazgoTexto: {
     ...typography.labelMd,
-    color: colors.primary,
+    color: colors.verde,
     flex: 1,
   },
   propio: {

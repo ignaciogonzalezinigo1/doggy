@@ -4,8 +4,9 @@
  * Lista las mascotas del usuario que vienen del contexto global. Tocar una
  * card abre su perfil, mantenerla presionada abre un menú de acciones
  * rápidas (ver `PetCard`) y el FAB mostaza lleva al alta de una mascota nueva.
- * Arriba de la lista, un aviso "¡Encontraron a …!" por cada mascota que
- * alguien reportó como encontrada, con "Ya volvió a casa".
+ * Arriba de la lista, un aviso por cada mascota que alguien encontró
+ * (`AvisoEncontrada`): "¡Encontraron a …!" si estaba perdida, o "Alguien
+ * encontró a … ¿Se perdió …?" si no. Aparece al cargar o refrescar los datos.
  */
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
@@ -18,11 +19,10 @@ import { AvisoEncontrada } from '@/components/mascotas/AvisoEncontrada';
 import { PetCard } from '@/components/PetCard';
 import { useApp } from '@/context/AppContext';
 import { useMenuMascota } from '@/hooks/useMenuMascota';
-import { useRecuperarMascota } from '@/hooks/useRecuperarMascota';
 import { useRefresco } from '@/hooks/useRefresco';
 import { colors, sizes, spacing, typography } from '@/theme';
-import type { Mascota, ReportePerdida } from '@/types/models';
-import { reporteEncontrado } from '@/utils/selectores';
+import type { Mascota } from '@/types/models';
+import { avisoDeMascota, type AvisoMascota } from '@/utils/selectores';
 
 /**
  * Listado de mascotas.
@@ -30,18 +30,17 @@ import { reporteEncontrado } from '@/utils/selectores';
  */
 export default function MisMascotasScreen() {
   const { mascotas, reportes, cargando, error, recargar } = useApp();
-  const { recuperando, pedirRecuperacion } = useRecuperarMascota();
   // El menú vive acá y no en cada card, así las cards no leen el contexto.
   const { abrirMenu } = useMenuMascota();
   const refresco = useRefresco();
 
   // --- Datos derivados ---
-  /** Reportes "encontrado" activos de las mascotas del usuario. */
-  const encontradas = useMemo(
+  /** Avisos de las mascotas del usuario que alguien encontró. */
+  const avisos = useMemo(
     () =>
       mascotas
-        .map((m) => reporteEncontrado(reportes, m.id))
-        .filter((r): r is ReportePerdida => r !== undefined),
+        .map((m) => avisoDeMascota(reportes, m.id))
+        .filter((a): a is AvisoMascota => a !== undefined),
     [mascotas, reportes],
   );
 
@@ -87,13 +86,8 @@ export default function MisMascotasScreen() {
         refreshControl={refresco}
         ListHeaderComponent={
           <View style={styles.encabezado}>
-            {encontradas.map((reporte) => (
-              <AvisoEncontrada
-                key={reporte.id}
-                reporte={reporte}
-                onRecuperada={pedirRecuperacion}
-                recuperando={recuperando}
-              />
+            {avisos.map((aviso) => (
+              <AvisoEncontrada key={aviso.encontrados[0].id} aviso={aviso} />
             ))}
             <Text style={styles.titulo}>Mis Mascotas</Text>
           </View>

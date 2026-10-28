@@ -65,6 +65,10 @@ const brand = {
   tealLight: '#2E9C8A',
   /** Chips y fondos suaves: teal claro al 10 % de opacidad. */
   tealLight10: 'rgba(46, 156, 138, 0.10)',
+  /** Reencuentros: el pin, la marca y el aviso de una mascota perdida que alguien encontró. */
+  verde: '#2E8540',
+  /** Fondo suave de los reencuentros: el verde al 10 % de opacidad. */
+  verde10: 'rgba(46, 133, 64, 0.10)',
   /** Verde agua del sistema con transparencia, para chips, badges y decoraciones. */
   secondaryContainer30: 'rgba(143, 245, 224, 0.30)',
   secondaryContainer20: 'rgba(143, 245, 224, 0.20)',

@@ -147,8 +147,10 @@ export function categoriaTurno(categoria: CategoriaTurno): (typeof CATEGORIAS_TU
   return CATEGORIAS_TURNO.find((c) => c.valor === categoria) ?? CATEGORIAS_TURNO[0];
 }
 
-/** Marca de un perdido que alguien encontró y su familia todavía no recuperó. */
-export const TEXTO_HALLAZGO = '¡La encontraron! Esperando que su familia la recupere';
+/** Marca de un reencuentro: un perdido que alguien encontró y su familia todavía no recuperó. */
+export const TEXTO_REENCUENTRO = '¡Reencuentro!';
+/** Detalle de la marca de un reencuentro. */
+export const DETALLE_REENCUENTRO = 'Esperando que vuelva con su familia';
 
 /**
  * Texto del botón (y de la confirmación) para cerrar un perdido, el mismo en
@@ -165,12 +167,13 @@ export function botonCierre(encontrada: boolean): { texto: string; icono: 'home'
 const RESULTADOS_REPORTE: Record<ResultadoReporte, string> = {
   devuelta: 'Devuelta a su familia',
   aparecio: 'Apareció',
+  descartado: 'No se había perdido',
 };
 
 /**
  * Texto del resultado de un reporte cerrado.
  * @param resultado lo que guardó el servidor al cerrarlo
- * @returns "Devuelta a su familia" o "Apareció"
+ * @returns "Devuelta a su familia", "Apareció" o "No se había perdido"
  */
 export function textoResultado(resultado: ResultadoReporte): string {
   return RESULTADOS_REPORTE[resultado];

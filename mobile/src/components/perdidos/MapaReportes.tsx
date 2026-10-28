@@ -22,13 +22,13 @@ export type { MapaReportesHandle } from './MapaReportes.types';
 const ANIMACION_MS = 500;
 
 /**
- * Mapa con un marker por reporte (un solo pin por mascota: la pantalla ya
- * saca los encontrados que representa su perdido).
- * @param props reportes, hallazgos, selección, callback y si se muestra al usuario
+ * Mapa con un marker por reporte (un solo pin por reencuentro: la pantalla
+ * ya saca el perdido y los otros encontrados de la mascota).
+ * @param props reportes, reencuentros, selección, callback y si se muestra al usuario
  * @returns el MapView
  */
 export const MapaReportes = forwardRef<MapaReportesHandle, MapaReportesProps>(
-  function MapaReportes({ reportes, hallazgos, onSeleccionar, seleccionadoId, mostrarUsuario, style }, ref) {
+  function MapaReportes({ reportes, reencuentros, onSeleccionar, seleccionadoId, mostrarUsuario, style }, ref) {
     const mapaRef = useRef<MapView>(null);
     // Solo el seleccionado muestra su círculo, para no tapar el mapa con zonas.
     const seleccionado = reportes.find((r) => r.id === seleccionadoId);
@@ -64,7 +64,7 @@ export const MapaReportes = forwardRef<MapaReportesHandle, MapaReportesProps>(
             key={reporte.id}
             reporte={reporte}
             seleccionado={reporte.id === seleccionadoId}
-            encontrada={hallazgos.has(reporte.id)}
+            reencuentro={reencuentros.has(reporte.id)}
             onPress={onSeleccionar}
           />
         ))}

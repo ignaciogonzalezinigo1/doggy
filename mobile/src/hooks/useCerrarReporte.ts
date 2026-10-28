@@ -5,8 +5,9 @@
  * menú y la edición del reporte, para que la respuesta sea igual en todos los
  * lugares: pide confirmación con el Alert nativo, cierra el reporte en el
  * servidor (PATCH /api/reportes/:id { cerrado: true }) y vibra al terminar.
- * El servidor decide el resultado: si alguien la había encontrado, cierra
- * también ese aviso y queda "Devuelta a su familia"; si no, "Apareció".
+ * El servidor decide el resultado: si alguien la había encontrado (un
+ * reencuentro), cierra también esos avisos y queda "Devuelta a su familia";
+ * si no, "Apareció".
  *
  * Háptica: usa el motor de vibración del celular con `expo-haptics` para
  * confirmar que el reporte se cerró (o avisar que falló). No pide permisos.
@@ -73,7 +74,7 @@ export function useCerrarReporte(onCerrado?: (reporte: ReportePerdida) => void):
       Alert.alert(
         encontrada ? `¿Ya recuperaste a ${reporte.nombre}?` : `¿${reporte.nombre} ya apareció?`,
         encontrada
-          ? 'Se cierran el reporte de pérdida y el aviso de quien la encontró. Los dos salen del mapa y no se pueden volver a abrir.'
+          ? 'Se cierran el reporte de pérdida y los avisos de hallazgo. Salen del mapa y no se pueden volver a abrir.'
           : 'El reporte sale del mapa y deja de verse para los demás. No se puede volver a abrir.',
         [
           { text: 'Cancelar', style: 'cancel' },

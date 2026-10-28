@@ -1,10 +1,10 @@
 /**
  * Pantalla Perdidos: mapa comunitario de mascotas perdidas y encontradas.
  *
- * Modo Mapa: un marker por reporte (mostaza perdido, teal encontrado) y uno
- * solo por mascota: el "encontrado" de una mascota con un perdido activo no se
- * dibuja aparte (tampoco con el filtro "Encontrados"); el perdido lleva el
- * tilde y "¡La encontraron!" y el hallazgo se ve en su detalle. Botón
+ * Modo Mapa: un marker por reporte (mostaza perdido, teal encontrado). Un
+ * reencuentro (perdido y encontrado de la misma mascota) es un solo marker
+ * verde con tilde en el lugar del encontrado más reciente, que es donde está
+ * ahora; el perdido y los otros encontrados no se dibujan aparte. Botón
  * "mi ubicación" que centra el mapa con el GPS y un carrusel de cards; tocar
  * un marker o una card centra el mapa en ese reporte y abre la hoja de
  * detalle con todo lo que se cargó al reportarlo. Modo Lista: las mismas
@@ -15,9 +15,12 @@
  * Si el reporte es de una mascota del usuario, desde el detalle se lo puede
  * editar (abre "Se perdió mi mascota" en modo edición) o cerrar con "Ya apareció"
  * ("Ya volvió a casa" si alguien la encontró).
- * Si es un perdido de otra familia, la card y el detalle ofrecen "Escribirle
- * por WhatsApp" con un mensaje que dice que la vio (`mensajeLaVi`, sin
- * ubicación), y "o llamar".
+ * Contacto: solo quien publicó un encontrado vinculado a la mascota ve
+ * "Escribirle por WhatsApp" a la familia (`mensajeLaTengo`) y "o llamar", en
+ * su card y en el detalle. La familia ve en el detalle el aviso con el
+ * contacto de quien la encontró. Los demás no tienen contacto: en el detalle
+ * de un perdido ajeno tienen "Encontré a …", que abre "Encontré una mascota"
+ * ya vinculado a esa mascota (`perdidoId`).
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -53,14 +56,16 @@ import { useRefresco } from '@/hooks/useRefresco';
 import { Coordenadas, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
-import { mensajeLaVi } from '@/utils/mensajes';
+import { mensajeLaTengo } from '@/utils/mensajes';
 import {
+  avisoDeMascota,
   contactoDeLaFamilia,
   FiltroEstado,
-  hallazgosPorPerdido,
+  perdidoParaAvisar,
   puedeGestionarReporte,
-  reporteActivo,
+  reencuentrosPorReporte,
   reportesDePerdidos,
+  reporteVisible,
 } from '@/utils/selectores';
 import { LIMITES } from '@/utils/validaciones';
 
@@ -116,13 +121,13 @@ export default function PerdidosScreen() {
   const { cerrando, pedirCierre } = useCerrarReporte(cerrarDetalle);
 
   // --- Datos derivados ---
-  // Un solo pin y una sola card por mascota, también con el filtro "Encontrados".
+  /** Reencuentros, por id del encontrado que los representa (con todos los reportes, no solo los filtrados). */
+  const reencuentros = useMemo(() => reencuentrosPorReporte(reportes), [reportes]);
+  // Un solo pin y una sola card por reencuentro.
   const visibles = useMemo(
-    () => reportesDePerdidos(reportes, busqueda, filtro),
-    [reportes, busqueda, filtro],
+    () => reportesDePerdidos(reportes, busqueda, filtro, reencuentros),
+    [reportes, busqueda, filtro, reencuentros],
   );
-  /** Encontrado activo de cada perdido, por id del perdido (con todos los reportes, no solo los filtrados). */
-  const hallazgos = useMemo(() => hallazgosPorPerdido(reportes), [reportes]);
   const anchoCard = width - spacing.containerMargin * 2 - ASOMA;
   /** Mismo objeto mientras no cambie el ancho, así `ReporteCard` (memoizada) no se redibuja. */
   const estiloCard = useMemo(() => ({ width: anchoCard }), [anchoCard]);
@@ -133,14 +138,24 @@ export default function PerdidosScreen() {
   }, [visibles]);
 
   /**
-   * Mensaje de WhatsApp para la familia de un perdido: quien mira cree que la vio.
-   * @param reporte perdido de otra familia
+   * Contacto de la familia para el usuario, si publicó que encontró a esa mascota.
+   * @param reporte reporte de Perdidos
+   * @returns nombre y teléfono, o undefined
+   */
+  const contactoDe = useCallback(
+    (reporte: ReportePerdida) => contactoDeLaFamilia(reporte, reencuentros.get(reporte.id), usuario?.id, mascotas),
+    [reencuentros, usuario?.id, mascotas],
+  );
+
+  /**
+   * Mensaje de WhatsApp para la familia: quien la encontró ya dejó en Doggy dónde está.
+   * @param reporte reporte de la mascota que encontró el usuario
    * @returns el texto del mensaje
    */
   const armarMensaje = useCallback(
     (reporte: ReportePerdida) =>
-      mensajeLaVi({ para: reporte.contacto?.nombre, yo: usuario?.nombre, mascota: reporte.nombre }),
-    [usuario?.nombre],
+      mensajeLaTengo({ para: contactoDe(reporte)?.nombre, yo: usuario?.nombre, mascota: reporte.nombre }),
+    [contactoDe, usuario?.nombre],
   );
 
   // Recién llegado de reportar: se muestra el nuevo marker seleccionado y centrado.
@@ -152,12 +167,8 @@ export default function PerdidosScreen() {
   const [destino, setDestino] = useState<Coordenadas | null>(null);
   if (reporteId && reporteId !== reporteRecibido) {
     const recibido = reportes.find((r) => String(r.id) === reporteId);
-    // Un encontrado de una mascota perdida no tiene pin propio: se marca su perdido.
-    const perdido =
-      recibido?.estado === 'encontrado' && recibido.mascotaId !== null
-        ? reporteActivo(reportes, recibido.mascotaId)
-        : undefined;
-    const reporte = perdido ?? recibido;
+    // Un reporte que es parte de un reencuentro no tiene pin propio: se marca el del reencuentro.
+    const reporte = recibido && reporteVisible(reencuentros, recibido);
     if (reporte) {
       setReporteRecibido(reporteId);
       setModo('mapa');
@@ -230,6 +241,20 @@ export default function PerdidosScreen() {
     setTimeout(
       () =>
         router.push({ pathname: '/mi-mascota-perdida', params: { reporteId: String(reporte.id) } }),
+      ESPERA_CIERRE_HOJA_MS,
+    );
+  }, []);
+
+  /**
+   * "Encontré a …" del detalle: cierra la hoja y abre "Encontré una mascota"
+   * vinculado a la mascota de ese perdido.
+   * @param perdido perdido de otra familia
+   */
+  const avisarQueLaEncontre = useCallback((perdido: ReportePerdida) => {
+    setDetalleVisible(false);
+    // En iOS no se puede presentar un modal mientras otro se está cerrando.
+    setTimeout(
+      () => router.push({ pathname: '/reportar', params: { perdidoId: String(perdido.id) } }),
       ESPERA_CIERRE_HOJA_MS,
     );
   }, []);
@@ -340,7 +365,7 @@ export default function PerdidosScreen() {
             <MapaReportes
               ref={mapaRef}
               reportes={visibles}
-              hallazgos={hallazgos}
+              reencuentros={reencuentros}
               onSeleccionar={handleMarker}
               seleccionadoId={seleccionadoId}
               mostrarUsuario={gps.permiso === 'concedido'}
@@ -383,11 +408,11 @@ export default function PerdidosScreen() {
                 renderItem={({ item }) => (
                   <ReporteCard
                     reporte={item}
-                    encontrada={hallazgos.has(item.id)}
+                    reencuentro={reencuentros.has(item.id)}
                     onPress={handleCard}
                     seleccionado={item.id === seleccionadoId}
                     style={estiloCard}
-                    contacto={contactoDeLaFamilia(item, usuario?.id, mascotas)}
+                    contacto={contactoDe(item)}
                     armarMensaje={armarMensaje}
                   />
                 )}
@@ -414,9 +439,9 @@ export default function PerdidosScreen() {
             renderItem={({ item }) => (
               <ReporteCard
                 reporte={item}
-                encontrada={hallazgos.has(item.id)}
+                reencuentro={reencuentros.has(item.id)}
                 onPress={abrirDetalle}
-                contacto={contactoDeLaFamilia(item, usuario?.id, mascotas)}
+                contacto={contactoDe(item)}
                 armarMensaje={armarMensaje}
               />
             )}
@@ -452,7 +477,12 @@ export default function PerdidosScreen() {
       <DetalleReporte
         visible={detalleVisible}
         reporte={detalle}
-        hallazgo={detalle ? hallazgos.get(detalle.id) : undefined}
+        reencuentro={detalle ? reencuentros.get(detalle.id) : undefined}
+        aviso={
+          detalle?.mascotaId != null && mascotas.some((m) => m.id === detalle.mascotaId)
+            ? avisoDeMascota(reportes, detalle.mascotaId)
+            : undefined
+        }
         esPropio={!!detalle && detalle.autorId === usuario?.id}
         onClose={cerrarDetalle}
         onVerEnMapa={abrirEnMapa}
@@ -460,8 +490,12 @@ export default function PerdidosScreen() {
         onEditar={editarReporte}
         onYaAparecio={pedirCierre}
         cerrando={cerrando}
-        contacto={detalle ? contactoDeLaFamilia(detalle, usuario?.id, mascotas) : undefined}
+        contacto={detalle ? contactoDe(detalle) : undefined}
         armarMensaje={armarMensaje}
+        perdidoParaAvisar={
+          detalle ? perdidoParaAvisar(detalle, reencuentros.get(detalle.id), usuario?.id, mascotas) : undefined
+        }
+        onEncontre={avisarQueLaEncontre}
       />
 
       {/* Dos reportes distintos: el tutor que perdió a su mascota y el vecino que encontró una. */}

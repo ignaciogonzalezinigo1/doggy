@@ -8,8 +8,9 @@
  * Si tiene un reporte de pérdida activo, en lugar de ese botón muestra el aviso
  * con la zona y el radio de búsqueda, "Editar reporte" y "Ya apareció" ("Ya
  * volvió a casa" si alguien la encontró).
- * Si alguien la reportó como encontrada, arriba de todo aparece
- * "¡Encontraron a …!" con "Ya volvió a casa".
+ * Si alguien avisó que la encontró, arriba de todo aparece el aviso
+ * (`AvisoEncontrada`): "¡Encontraron a …!" con "Ya volvió a casa" si estaba
+ * perdida, o "¿Se perdió …?" con "Sí, se perdió" y "No, está conmigo" si no.
  * Al final, solo para un dueño, "Eliminar mascota" (en rojo) abre el doble
  * chequeo (`EliminarMascota`); al borrarla se vuelve a Mis Mascotas.
  */
@@ -29,7 +30,6 @@ import { QrIdentificacion } from '@/components/QrIdentificacion';
 import { SectionCard } from '@/components/SectionCard';
 import { useApp } from '@/context/AppContext';
 import { useCerrarReporte } from '@/hooks/useCerrarReporte';
-import { useRecuperarMascota } from '@/hooks/useRecuperarMascota';
 import { useRefresco } from '@/hooks/useRefresco';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import { botonCierre, textoEdad } from '@/utils/etiquetas';
@@ -37,10 +37,10 @@ import { formatearFecha, formatearHora, tiempoTranscurrido } from '@/utils/fecha
 import { textoRadio } from '@/utils/mapa';
 import { volver } from '@/utils/navegacion';
 import {
+  avisoDeMascota,
   buscarMascota,
   proximoTurno,
   reporteActivo,
-  reporteEncontrado,
   ultimaVacuna,
 } from '@/utils/selectores';
 
@@ -56,7 +56,6 @@ export default function PerfilMascotaScreen() {
   const { usuario, mascotas, registros, turnos, reportes, cuidadores, cargando, error, recargar } = useApp();
   const [eliminarVisible, setEliminarVisible] = useState(false);
   const { cerrando, pedirCierre } = useCerrarReporte();
-  const { recuperando, pedirRecuperacion } = useRecuperarMascota();
   const refresco = useRefresco();
 
   // --- Datos derivados ---
@@ -73,8 +72,8 @@ export default function PerfilMascotaScreen() {
     () => (mascota ? reporteActivo(reportes, mascota.id) : undefined),
     [reportes, mascota],
   );
-  const encontrado = useMemo(
-    () => (mascota ? reporteEncontrado(reportes, mascota.id) : undefined),
+  const aviso = useMemo(
+    () => (mascota ? avisoDeMascota(reportes, mascota.id) : undefined),
     [reportes, mascota],
   );
   /** Personas asignadas a la mascota: si el usuario es dueño y quiénes más la tienen. */
@@ -147,13 +146,7 @@ export default function PerfilMascotaScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={refresco}
       >
-        {encontrado && (
-          <AvisoEncontrada
-            reporte={encontrado}
-            onRecuperada={pedirRecuperacion}
-            recuperando={recuperando}
-          />
-        )}
+        {aviso && <AvisoEncontrada aviso={aviso} />}
 
         {/* Hero: foto, nombre, raza y edad */}
         <View style={styles.hero}>
@@ -264,8 +257,8 @@ export default function PerfilMascotaScreen() {
                 style={styles.perdidaBoton}
               />
               <PrimaryButton
-                title={botonCierre(!!encontrado).texto}
-                icon={botonCierre(!!encontrado).icono}
+                title={botonCierre(aviso?.tipo === 'reencuentro').texto}
+                icon={botonCierre(aviso?.tipo === 'reencuentro').icono}
                 iconLeft
                 size="sm"
                 onPress={() => pedirCierre(reporte)}

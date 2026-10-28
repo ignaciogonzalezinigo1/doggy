@@ -1,13 +1,16 @@
 /**
- * Cómo contactar a la familia de una mascota perdida, igual en todos los
- * lugares (la tarjeta del QR, el detalle del reporte y las cards de Perdidos).
+ * Cómo contactar a otra persona por una mascota encontrada, igual en todos
+ * los lugares: quien la encontró a la familia (el detalle y las cards de
+ * Perdidos, y "Encontré una mascota" si ya había avisado) y la familia a
+ * quien la encontró (`AvisoEncontrada`).
  *
  * Si el teléfono es un celular, la acción principal es "Escribirle por
  * WhatsApp" con el mensaje ya escrito (`BotonWhatsApp`), y llamar queda como
  * un link chico ("o llamar"). Si es un fijo, WhatsApp no funciona: solo
  * aparece el link para llamar, con el número.
  *
- * Quien lo usa decide si mostrarlo: nunca al dueño ni a los asignados de la
+ * Quien lo usa decide si mostrarlo, con el `contacto` que manda el servidor:
+ * a la familia solo le escribe quien publicó un encontrado vinculado a la
  * mascota (ver `contactoDeLaFamilia`).
  */
 import { StyleSheet, View } from 'react-native';

@@ -5,6 +5,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 
 import type { Coordenadas } from '@/hooks/useUbicacion';
 import type { ReportePerdida } from '@/types/models';
+import type { Reencuentro } from '@/utils/selectores';
 
 /** Lo que el mapa expone por ref a la pantalla. */
 export type MapaReportesHandle = {
@@ -14,8 +15,8 @@ export type MapaReportesHandle = {
 
 export type MapaReportesProps = {
   reportes: ReportePerdida[];
-  /** Hallazgos de los perdidos, por id del perdido (`hallazgosPorPerdido`): su pin lleva un tilde. */
-  hallazgos: ReadonlyMap<number, ReportePerdida>;
+  /** Reencuentros, por id del reporte que los representa (`reencuentrosPorReporte`): su pin es verde con un tilde. */
+  reencuentros: ReadonlyMap<number, Reencuentro>;
   onSeleccionar: (reporte: ReportePerdida) => void;
   seleccionadoId?: number | null;
   /** Muestra el punto azul del usuario (solo si hay permiso). */

@@ -128,6 +128,11 @@ type AppAcciones = {
    * mapa. Devuelve el reporte cerrado, con el `resultado` que decidió el servidor.
    */
   cerrarReporte: (id: number) => Promise<ReportePerdida>;
+  /**
+   * "Sí, se perdió": crea el perdido de la mascota de un encontrado sin
+   * perdido, con el lugar del encontrado. Devuelve el perdido.
+   */
+  confirmarPerdida: (encontradoId: number) => Promise<ReportePerdida>;
   agregarRegistro: (datos: NuevoRegistro) => Promise<RegistroSanitario>;
   editarRegistro: (id: number, datos: NuevoRegistro) => Promise<RegistroSanitario>;
   borrarRegistro: (id: number) => Promise<void>;
@@ -461,14 +466,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /**
    * Cierra un reporte y lo saca de la lista. Si volvió con su familia
-   * ("devuelta"), el servidor cerró también el otro reporte activo de la
-   * mascota (el perdido o el encontrado): sale de la lista también.
+   * ("devuelta") o no se había perdido ("descartado"), el servidor cerró
+   * también los otros reportes activos de la mascota: salen de la lista también.
    */
   const cerrarReporte = useCallback(async (id: number) => {
     const cerrado = await reportesService.cerrarReporte(id);
-    const mascotaId = cerrado.resultado === 'devuelta' ? cerrado.mascotaId : null;
+    const arrastra = cerrado.resultado === 'devuelta' || cerrado.resultado === 'descartado';
+    const mascotaId = arrastra ? cerrado.mascotaId : null;
     setReportes((prev) => prev.filter((r) => r.id !== id && (mascotaId === null || r.mascotaId !== mascotaId)));
     return cerrado;
+  }, []);
+
+  /** "Sí, se perdió": suma a la lista el perdido que crea el servidor. */
+  const confirmarPerdida = useCallback(async (encontradoId: number) => {
+    const perdido = await reportesService.confirmarPerdida(encontradoId);
+    setReportes((prev) => [...prev, perdido]);
+    return perdido;
   }, []);
 
   /** Agrega un registro al carnet sanitario. */
@@ -592,6 +605,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       crearReporte,
       editarReporte,
       cerrarReporte,
+      confirmarPerdida,
       agregarRegistro,
       editarRegistro,
       borrarRegistro,
@@ -618,6 +632,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       crearReporte,
       editarReporte,
       cerrarReporte,
+      confirmarPerdida,
       agregarRegistro,
       editarRegistro,
       borrarRegistro,
