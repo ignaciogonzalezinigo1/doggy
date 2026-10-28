@@ -110,14 +110,11 @@ El seed de `doggy-backend` carga los datos de la demo. **Todos los usuarios tien
 
 | Usuario | Email | Para probar |
 | --- | --- | --- |
-| Sofía Romero | `sofia.romero@mail.com` | La usuaria principal: Luna, Roco y Milo, con carnet (refuerzos próximos y vencidos), turnos y "Alguien encontró a Milo. ¿Se perdió Milo?" con WhatsApp a Valentina, "Sí, se perdió" y "No, está conmigo" |
-| Lucía Gómez | `lucia.gomez@mail.com` | Tutora de Toby. "Encontré una mascota" → escanear el QR de Pipa (perdida) y avisar: es un reencuentro y ve "Escribirle por WhatsApp" a Julián. Escaneando el QR de Luna y avisando, Sofía ve "¿Se perdió Luna?". Sofía puede sumar a Toby con el código **`TOBY2026`** (Perfil → Tengo un código de asignación) |
-| Julián Fernández | `julian.fernandez@mail.com` | Tutor de Pipa, perdida en Caballito: desde su perfil se descarga o comparte el QR para escanearlo con otra cuenta |
-| Carlos Romero | `carlos.romero@mail.com` | Co-tutor (dueño) de Luna: sirve para ver la misma mascota desde otra cuenta |
-| Marcos Díaz | `marcos.diaz@mail.com` | Tutor de Rocky, perdido en Núñez y encontrado por Martín, todavía sin recuperar: en Perdidos es un solo pin verde de "¡Reencuentro!" donde lo encontró Martín, y "Ya volvió a casa" cierra los dos reportes como "Devuelta a su familia". También es paseador de Roco (invitado): no puede generar códigos de asignación |
-| Vet. San Roque | `contacto@vetsanroque.com` | Clínica con teléfono fijo: no ofrece WhatsApp |
+| Sofía Romero | `sofia.romero@mail.com` | La usuaria principal: Luna, Roco y Milo, con carnet (refuerzos próximos y vencidos), turnos y fotos. Ve "Alguien encontró a Milo. ¿Se perdió Milo?" con WhatsApp a Julián, "Sí, se perdió" y "No, está conmigo". En Familia y Cuidadores, Julián pasea a Roco. Acepta el código **`TOBY2026`** (Perfil → Tengo un código de asignación) |
+| Lucía Gómez | `lucia.gomez@mail.com` | Dueña de Toby; generó `TOBY2026`. En la demo en vivo, "Encontré una mascota" → escanea el QR de Luna |
+| Julián Fernández | `julian.fernandez@mail.com` | Vecino: dueño de Pipa, perdida en Caballito (el pin del mapa), paseador de Roco y quien encontró a Milo |
 
-La lista completa está en el README de `doggy-backend`, y el seed la imprime al terminar. También se puede crear una cuenta nueva desde "Registrarme". Para volver a la demo limpia: `npm run db:reset` en `doggy-backend` (borra los datos locales).
+El seed la imprime al terminar. Para que WhatsApp abra un celular real en la demo, completá `TELEFONO_DEMO_SOFIA` en el `.env` de `doggy-backend` (formato 5491…, sin + ni espacios, por ejemplo `5491123456789`) antes del `npm run db:reset`; si queda vacía, Sofía tiene un número inventado. El guion de la demo en vivo está en `docs/defensa.md`. También se puede crear una cuenta nueva desde "Registrarme". Para volver a la demo limpia: `npm run db:reset` en `doggy-backend` (borra los datos locales).
 
 Las fotos de la demo son de Unsplash (Licencia de Unsplash); el autor y el link de cada una están en [CREDITOS.md](CREDITOS.md).
 

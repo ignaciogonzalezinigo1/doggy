@@ -331,15 +331,18 @@ SQLite no guarda listas. La ruta las convierte a `etiquetas: string[]` antes de 
 
 ## Guion de demo
 
-Antes: `npm run db:reset` en `doggy-backend` (deja la demo limpia y las fechas al día). Contraseña de todos: `doggy1234`.
+Antes de la presentación, en `doggy-backend`:
 
-1. **Sofía** (`sofia.romero@mail.com`). Mis Mascotas: arriba aparece "Alguien encontró a Milo. ¿Se perdió Milo?" (Valentina escaneó su QR), con la foto, dónde y cuándo, "Escribirle por WhatsApp" a Valentina, "Sí, se perdió" y "No, está conmigo". Abrir Luna → Carnet: próximo refuerzo de la antirrábica, la séxtuple con el refuerzo vencido, desparasitaciones y "Análisis de sangre" en Otros. Tocar "Ver etiqueta" si hay una cargada y hacer zoom. Roco tiene una sola vacuna: deslizarla para mostrar "Eliminar" (cancelar). Agenda: turnos pasados y próximos.
-2. **Sofía**, Perdidos: mapa con los reportes en Palermo, Belgrano, Villa Urquiza, Caballito, Almagro, Núñez y Saavedra; filtrar perdidos y encontrados. Rocky tiene un solo pin verde con un tilde ("¡Reencuentro!") en Saavedra, donde lo encontró Martín.
-3. **Marcos** (`marcos.diaz@mail.com`). Mis Mascotas: "¡Encontraron a Rocky!" con el contacto de Martín. En Perdidos, el detalle de Rocky muestra el mismo aviso y cuándo y dónde se perdió. "Ya volvió a casa": se cierran el perdido y el encontrado ("Devuelta a su familia") y Rocky sale del mapa.
-4. **Julián** (`julian.fernandez@mail.com`). Perfil de Pipa: está reportada como perdida; "Descargar QR" o "Compartir QR" para tener la imagen.
-5. **Lucía** (`lucia.gomez@mail.com`). En Perdidos, el detalle de Pipa no tiene contacto ni forma de avisar. "Encontré una mascota" arranca en el escáner: escanear el QR de Pipa (con la cámara o "Subir imagen QR"), ver la tarjeta de solo lectura, marcar el punto, escribir un comentario y "Avisarle a su familia": Pipa pasa a un pin verde de reencuentro y el detalle ofrece "Escribirle por WhatsApp" a Julián ("¡Hola Julián! Soy Lucía. Encontré a Pipa y te avisé en Doggy dónde está. ¿Cómo coordinamos para que vuelva a casa?"). Escanear el QR de Luna: "Su familia: Sofía", sin contacto hasta publicar.
-6. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada.
-7. **Vet. San Roque** (`contacto@vetsanroque.com`): teléfono fijo, así que en sus avisos no aparece WhatsApp.
-8. **Sofía**, Perfil → Familia y Cuidadores → Roco: "Quitar" en Marcos (invitado) → confirmar. Con **Marcos**, Roco ya no aparece al refrescar. Con la **Vet. San Roque**, en Luna: "Dejar de cuidar a Luna".
-9. **Sofía**, una mascota de prueba (darla de alta antes): perfil → "Eliminar mascota" → escribir el nombre → "Eliminar para siempre": vuelve a Mis Mascotas y no está más.
-10. **Registro** (o Perfil → "Editar datos personales"): el teléfono tiene el +54 fijo. Pegar "+54 9 299 455 4060": queda "299 455-4060" y aparece "Ya agregamos el +54, escribí solo tu número". Probar "+1 202 555 0143": "Solo se aceptan teléfonos de Argentina."
+1. En el `.env`, `TELEFONO_DEMO_SOFIA=5491…` con el celular donde va a estar abierta la cuenta de Sofía (sin + ni espacios: 54, el 9, la característica sin 0 y el número sin 15). Así "Escribirle por WhatsApp" abre ese celular. Si queda vacía, Sofía tiene un número inventado.
+2. `npm run db:reset` (deja la demo limpia y las fechas al día). Contraseña de todos: `doggy1234`.
+3. Dos celulares: uno con **Sofía** (`sofia.romero@mail.com`) y otro con **Lucía** (`lucia.gomez@mail.com`).
+
+Demo en vivo:
+
+1. **Sofía**, Mis Mascotas: "Alguien encontró a Milo. ¿Se perdió Milo?" (Julián escaneó su chapita), con la foto, dónde y cuándo, el comentario y "Escribirle por WhatsApp" a Julián. Tocar "No, está conmigo": el aviso se cierra ("No se había perdido").
+2. **Sofía**, Perdidos: Pipa, de Julián, en el mapa. Después, "Se perdió mi mascota" → Luna → marcar dónde se la vio y el radio → publicar: Luna aparece en mostaza.
+3. **Lucía**, "Encontré una mascota": arranca en el escáner. Escanear el QR de Luna desde el perfil de Luna en el celular de Sofía. Tarjeta de solo lectura (foto, nombre, raza, "Su familia: Sofía"), marcar dónde está, un comentario y "Avisarle a su familia". En Perdidos, Luna pasa a un pin verde de "¡Reencuentro!" y su card ofrece "Escribirle por WhatsApp" a Sofía, que abre el chat con el mensaje armado.
+4. **Sofía**, refrescar Mis Mascotas: "¡Encontraron a Luna!" con el comentario de Lucía y su WhatsApp. "Ya volvió a casa": se cierran el perdido y el encontrado ("Devuelta a su familia") y Luna sale del mapa.
+5. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada (lo ve y lo edita, pero no genera códigos). En Familia y Cuidadores, Julián aparece como paseador de Roco, con "Quitar".
+
+Si sobra tiempo: el carnet de Luna (próximo refuerzo, la séxtuple vencida, "Ver etiqueta" con zoom, deslizar para borrar en Roco), la Agenda, "Eliminar mascota" con una mascota de prueba y el input de teléfono (pegar "+54 9 299 455 4060": queda "299 455-4060"). Para repetir la demo desde cero, otro `npm run db:reset`.
