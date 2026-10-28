@@ -3,18 +3,16 @@
  *
  * Arma el link con `enlaceWhatsApp` (wa.me, la utilidad única) y lo abre con
  * `Linking.openURL`. El mensaje se arma recién al tocar, con los datos
- * de ese momento. Si WhatsApp no
- * se puede abrir, avisa y ofrece el número para llamar.
+ * de ese momento. Si WhatsApp no se puede abrir, avisa.
  *
  * Mostrarlo solo para celulares (`esCelular`): a un fijo no se le puede escribir.
- * Con `principal` es el botón lleno (la acción principal para contactar a la
- * familia de una mascota perdida, ver `ContactoDueno`); si no, va con borde.
+ * Con `principal` es el botón lleno (el único medio de contacto, ver
+ * `ContactoDueno`); si no, va con borde.
  */
 import { useState } from 'react';
 import { Alert, Linking } from 'react-native';
 
 import { enlaceWhatsApp } from '@/utils/enlaces';
-import { formatearTelefono } from '@/utils/telefonos';
 import { PrimaryButton } from './PrimaryButton';
 
 type Props = {
@@ -44,7 +42,7 @@ export function BotonWhatsApp({ titulo, telefono, armarMensaje, principal = fals
     } catch {
       Alert.alert(
         'No pudimos abrir WhatsApp',
-        `Fijate que esté instalado. También podés llamar al ${formatearTelefono(telefono)}.`,
+        'Fijate que esté instalado y volvé a intentar.',
       );
     } finally {
       setAbriendo(false);

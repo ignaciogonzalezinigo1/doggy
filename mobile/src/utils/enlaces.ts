@@ -1,19 +1,12 @@
 /**
- * Links que abre la app para comunicarse: llamar (`tel:`) y WhatsApp (wa.me).
+ * Link que abre la app para comunicarse: WhatsApp (wa.me). No se ofrece
+ * llamar: el único medio de contacto entre la familia y quien encontró a la
+ * mascota es WhatsApp.
  *
  * Los teléfonos llegan del servidor ya en E.164 ("+5491145892310"), así que
  * se usan tal cual: no se vuelven a pasar por `aE164`, que tomaría un fijo
  * como celular. La regla para leerlos y mostrarlos está en `telefonos.ts`.
  */
-
-/**
- * Link para llamar (`tel:` con el número en E.164).
- * @param telefono teléfono guardado
- * @returns la URL `tel:`
- */
-export function enlaceTelefono(telefono: string): string {
-  return `tel:${telefono.replace(/[^\d+]/g, '')}`;
-}
 
 /**
  * Link de WhatsApp con un mensaje ya escrito: https://wa.me/<número sin +>?text=<texto>.

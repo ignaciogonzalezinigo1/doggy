@@ -4,57 +4,53 @@
  * Perdidos, y "Encontré una mascota" si ya había avisado) y la familia a
  * quien la encontró (`AvisoEncontrada`).
  *
- * Si el teléfono es un celular, la acción principal es "Escribirle por
- * WhatsApp" con el mensaje ya escrito (`BotonWhatsApp`), y llamar queda como
- * un link chico ("o llamar"). Si es un fijo, WhatsApp no funciona: solo
- * aparece el link para llamar, con el número.
+ * El único medio es WhatsApp, con el mensaje ya escrito (`BotonWhatsApp`):
+ * no se ofrece llamar. Si no hay teléfono o es un fijo (a un fijo no se le
+ * puede escribir por WhatsApp), en lugar del botón va un texto breve que lo
+ * explica.
  *
  * Quien lo usa decide si mostrarlo, con el `contacto` que manda el servidor:
  * a la familia solo le escribe quien publicó un encontrado vinculado a la
- * mascota (ver `contactoDeLaFamilia`).
+ * mascota (ver `encontradoDelUsuario`).
  */
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
-import { spacing } from '@/theme';
+import { colors, typography } from '@/theme';
+import type { ReportePerdida } from '@/types/models';
 import { esCelular } from '@/utils/telefonos';
 import { BotonWhatsApp } from './BotonWhatsApp';
-import { LinkTelefono } from './LinkTelefono';
 
 type Props = {
-  /** Teléfono de la familia, en E.164. */
-  telefono: string;
-  /** A quién se contacta. */
-  nombre: string;
+  /** A quién se le escribe, o null si no cargó teléfono. */
+  contacto: ReportePerdida['contacto'] | null;
   /** Arma el mensaje al tocar el botón. */
   armarMensaje: () => string | Promise<string>;
-  /** En fila (para las cards): el botón y el link uno al lado del otro. */
-  compacto?: boolean;
 };
 
 /**
- * Botón de WhatsApp con el link para llamar, o solo el link si es un fijo.
+ * Botón de WhatsApp, o el texto que explica por qué no se puede escribir.
  * @param props ver `Props`
- * @returns las acciones de contacto
+ * @returns el botón o el aviso
  */
-export function ContactoDueno({ telefono, nombre, armarMensaje, compacto = false }: Props) {
-  if (!esCelular(telefono)) return <LinkTelefono telefono={telefono} nombre={nombre} />;
+export function ContactoDueno({ contacto, armarMensaje }: Props) {
+  if (!contacto || !esCelular(contacto.telefono)) {
+    return (
+      <Text style={styles.sinWhatsApp}>
+        {contacto
+          ? `${contacto.nombre} no tiene un celular con WhatsApp cargado.`
+          : 'No cargó un celular con WhatsApp: no se le puede escribir desde Doggy.'}
+      </Text>
+    );
+  }
   return (
-    <View style={[styles.grupo, compacto && styles.fila]}>
-      <BotonWhatsApp titulo="Escribirle por WhatsApp" telefono={telefono} armarMensaje={armarMensaje} principal />
-      <LinkTelefono telefono={telefono} nombre={nombre} texto="o llamar" />
-    </View>
+    <BotonWhatsApp titulo="Escribirle por WhatsApp" telefono={contacto.telefono} armarMensaje={armarMensaje} principal />
   );
 }
 
 // --- Estilos ---
 const styles = StyleSheet.create({
-  grupo: {
-    gap: spacing.sm,
-  },
-  fila: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: spacing.stackSm,
+  sinWhatsApp: {
+    ...typography.bodySm,
+    color: colors.onSurfaceVariant,
   },
 });

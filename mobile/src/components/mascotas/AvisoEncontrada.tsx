@@ -8,10 +8,12 @@
  *   encontró a {nombre}. ¿Se perdió {nombre}?" con "Sí, se perdió" (crea el
  *   perdido con el lugar del encontrado y pasa a reencuentro) y "No, está
  *   conmigo" (cierra el aviso).
- * En los dos muestra la foto que sacó quien la encontró, dónde y cuándo, su
- * descripción y, por cada persona que avisó, "Escribirle por WhatsApp" con el
- * agradecimiento ya escrito (`mensajeGracias`, sin ubicación) y "o llamar".
- * El contacto lo manda el servidor solo a los asignados a la mascota.
+ * En los dos muestra la foto de la mascota, dónde está y cuándo la
+ * encontraron, el comentario de quien la encontró (si dejó uno) y, por cada
+ * persona que avisó, "Escribirle por WhatsApp" con el agradecimiento ya
+ * escrito (`mensajeGracias`, sin ubicación); si no cargó un celular, un texto
+ * que lo explica. No se ofrece llamar. El contacto lo manda el servidor solo
+ * a los asignados a la mascota.
  * Las acciones están en `useRecuperarMascota`.
  */
 import { MaterialIcons } from '@expo/vector-icons';
@@ -49,7 +51,6 @@ export function AvisoEncontrada({ aviso, onRespondido }: Props) {
   const [ultimo] = aviso.encontrados;
   const reencuentro = aviso.tipo === 'reencuentro';
   const cuando = `${tiempoTranscurrido(ultimo.fecha)} · ${formatearFecha(ultimo.fecha)} ${formatearHora(ultimo.fecha)}`;
-  const contactos = aviso.encontrados.filter((e) => e.contacto);
 
   return (
     <View style={[styles.card, reencuentro ? styles.cardReencuentro : styles.cardDudoso]} accessibilityLiveRegion="polite">
@@ -74,22 +75,21 @@ export function AvisoEncontrada({ aviso, onRespondido }: Props) {
           <Dato icono="schedule" etiqueta="Cuándo" valor={cuando} />
         </View>
       </View>
-      <Text style={styles.descripcion}>{ultimo.descripcion}</Text>
+      {!!ultimo.infoAdicional && <Text style={styles.descripcion}>{ultimo.infoAdicional}</Text>}
 
-      {contactos.map((encontrado) =>
-        encontrado.contacto ? (
-          <View key={encontrado.id} style={styles.contacto}>
+      {aviso.encontrados.map((encontrado) => (
+        <View key={encontrado.id} style={styles.contacto}>
+          {encontrado.contacto && (
             <Text style={styles.contactoTexto}>Avisó {encontrado.contacto.nombre}. Coordiná la vuelta:</Text>
-            <ContactoDueno
-              telefono={encontrado.contacto.telefono}
-              nombre={encontrado.contacto.nombre}
-              armarMensaje={() =>
-                mensajeGracias({ para: encontrado.contacto?.nombre, yo: usuario?.nombre, mascota: encontrado.nombre })
-              }
-            />
-          </View>
-        ) : null,
-      )}
+          )}
+          <ContactoDueno
+            contacto={encontrado.contacto ?? null}
+            armarMensaje={() =>
+              mensajeGracias({ para: encontrado.contacto?.nombre, yo: usuario?.nombre, mascota: encontrado.nombre })
+            }
+          />
+        </View>
+      ))}
 
       {reencuentro ? (
         <PrimaryButton

@@ -6,7 +6,8 @@
  * que vuelva con su familia".
  * Se usa en el carrusel debajo del mapa y en el modo lista.
  * Si viene `contacto` (la familia, solo para quien publicó que la encontró),
- * abajo suma "Escribirle por WhatsApp" con el link "o llamar" (`ContactoDueno`).
+ * abajo suma "Escribirle por WhatsApp" (`ContactoDueno`), o el texto que
+ * explica que no se le puede escribir.
  */
 import { memo } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -29,8 +30,11 @@ type Props = {
   /** Resalta la card (la que está centrada en el mapa). */
   seleccionado?: boolean;
   style?: StyleProp<ViewStyle>;
-  /** Familia a la que le escribe quien la encontró (ver `contactoDeLaFamilia`). */
-  contacto?: ReportePerdida['contacto'];
+  /**
+   * Familia a la que le escribe quien la encontró (ver `encontradoDelUsuario`):
+   * null si no cargó teléfono, undefined si el usuario no la encontró.
+   */
+  contacto?: ReportePerdida['contacto'] | null;
   /** Arma el mensaje de WhatsApp para este reporte (estable, para no romper el memo). */
   armarMensaje?: (reporte: ReportePerdida) => string;
 };
@@ -126,13 +130,8 @@ function ReporteCardBase({
           )}
         </View>
       </View>
-      {contacto && armarMensaje && (
-        <ContactoDueno
-          telefono={contacto.telefono}
-          nombre={contacto.nombre}
-          armarMensaje={() => armarMensaje(reporte)}
-          compacto
-        />
+      {contacto !== undefined && armarMensaje && (
+        <ContactoDueno contacto={contacto} armarMensaje={() => armarMensaje(reporte)} />
       )}
     </Pressable>
   );
