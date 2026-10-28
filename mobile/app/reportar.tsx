@@ -5,30 +5,31 @@
  * propia es `mi-mascota-perdida.tsx`). Junta los tres componentes nativos:
  * - cámara: escanear el QR de la chapita para identificar a la mascota,
  * - cámara y fototeca: sacarle una foto en el momento o elegir una de la galería,
- * - GPS: precargar en el mini mapa el punto donde se la encontró.
- * Apenas se lee un QR válido se cierra la cámara y aparece la tarjeta de la
- * mascota, de solo lectura: nombre, edad, raza, foto y el nombre de su tutor.
- * Si está reportada como perdida, el servidor suma el teléfono del tutor y
- * aparece "Escribirle por WhatsApp" con el mensaje armado (`mensajeLaTengo`)
- * y el link "o llamar" (solo el link si es un fijo); si no, no lo manda. Si
- * quien escanea es de la familia, ve el teléfono pero no el botón. Los datos de la
- * mascota no se editan ni se envían (el servidor los toma de la mascota):
- * quien la encontró completa solo el hallazgo, que es el comentario, una foto
- * del momento si tiene y el punto en el mapa. "Escanear otra" vuelve a la cámara.
+ * - GPS: precargar en el mini mapa el punto donde está ahora.
  *
- * Se puede avisar aunque la mascota no esté perdida, a propósito: puede que su
- * familia todavía no sepa que se escapó, y es la única forma de avisarle
- * porque en ese caso no se muestra su teléfono. Si ya tiene un aviso de
- * encontrada activo, no se permite otro ("Ya le avisaron a su familia", el
- * mismo texto que el 409 del servidor).
+ * El encontrado queda vinculado a la mascota de dos formas:
+ * - con el QR: apenas se lee uno válido se cierra la cámara y aparece la
+ *   tarjeta de la mascota, de solo lectura (nombre, edad, raza, foto y el
+ *   nombre de su familia). Se publica con el `codigo` leído, que le prueba al
+ *   servidor que quien avisa tiene la chapita, aunque la mascota no esté
+ *   perdida (puede que su familia todavía no sepa que se escapó);
+ * - desde un perdido del mapa ("Encontré a …" en su detalle): llega con el
+ *   `perdidoId` y muestra la mascota de ese perdido, sin escáner.
+ * Quien la encontró completa solo el hallazgo: el comentario, una foto del
+ * momento y el punto en el mapa. La tarjeta no ofrece contactar a la familia:
+ * el contacto aparece recién después de publicar, en su encontrado en
+ * Perdidos (o acá mismo, si ya había avisado). No se puede avisar sobre una
+ * mascota propia o asignada, ni dos veces sobre la misma (el mismo texto que
+ * el 403 y el 409 del servidor).
  *
  * Sin QR se cargan nombre (opcional, porque quien la encuentra muchas veces no
- * lo sabe), raza y descripción. Al confirmar se crea el reporte "encontrado",
- * vibra, se cierra el modal y se muestra el nuevo marker en Perdidos.
+ * lo sabe), raza y descripción, y queda como encontrado anónimo. Al confirmar
+ * se crea el reporte "encontrado", vibra, se cierra el modal y se muestra el
+ * nuevo marker en Perdidos.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -47,7 +48,6 @@ import { AvisoPermisoFoto } from '@/components/AvisoPermisoFoto';
 import { ContactoDueno } from '@/components/ContactoDueno';
 import { FotoEditable } from '@/components/FotoEditable';
 import { Input } from '@/components/Input';
-import { LinkTelefono } from '@/components/LinkTelefono';
 import { PermissionNotice } from '@/components/PermissionNotice';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { EscanerQr, ResultadoLectura } from '@/components/reporte/EscanerQr';
@@ -58,11 +58,11 @@ import { useFototeca } from '@/hooks/useFototeca';
 import { Coordenadas, DireccionLegible, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import { ErrorApi } from '@/services/http';
-import type { MascotaPublica } from '@/types/models';
+import type { MascotaPublica, ReportePerdida } from '@/types/models';
 import { CODIGO_MASCOTA_REGEX } from '@/utils/codigos';
 import { textoEdad } from '@/utils/etiquetas';
 import { CENTRO_CABA } from '@/utils/mapa';
-import { reporteActivo } from '@/utils/selectores';
+import { encontradoPropio, reporteActivo } from '@/utils/selectores';
 import { mensajeLaTengo } from '@/utils/mensajes';
 import {
   LIMITES,
@@ -80,8 +80,10 @@ type Errores = {
 
 /** Nombre que se publica si quien la encontró no lo sabe. */
 const SIN_NOMBRE = 'Sin identificar';
-/** Aviso si la mascota ya tiene un reporte de encontrada activo (el mismo texto que el 409 del servidor). */
-const MENSAJE_YA_AVISARON = 'Ya le avisaron a su familia.';
+/** Aviso si el usuario ya avisó que encontró a esta mascota (el mismo texto que el 409 del servidor). */
+const MENSAJE_YA_AVISASTE = 'Ya avisaste que encontraste a esta mascota.';
+/** Aviso si la mascota es del usuario (el mismo texto que el 403 del servidor). */
+const MENSAJE_ES_TUYA = 'Esta mascota está en tu cuenta: no hace falta avisar que la encontraste.';
 
 /**
  * Pantalla del reporte de mascota encontrada.
@@ -92,10 +94,10 @@ export default function ReportarScreen() {
   const gps = useUbicacion({ automatico: true });
   const fototeca = useFototeca();
   const insets = useSafeAreaInsets();
+  const { perdidoId } = useLocalSearchParams<{ perdidoId?: string }>();
 
   // --- Estado ---
-  const [mascotaId, setMascotaId] = useState<number | null>(null);
-  /** Mascota identificada por el QR, con el nombre (y si está perdida, el teléfono) de su tutor. */
+  /** Mascota identificada por el QR, con el nombre de su familia. */
   const [identificada, setIdentificada] = useState<MascotaPublica | null>(null);
   const [nombre, setNombre] = useState('');
   const [raza, setRaza] = useState('');
@@ -111,23 +113,29 @@ export default function ReportarScreen() {
   const pinAjustado = useRef(false);
 
   // --- Datos derivados ---
+  /** Perdido desde el que se llegó ("Encontré a …"), si todavía está activo. */
+  const perdidoOrigen = perdidoId
+    ? reportes.find((r) => String(r.id) === perdidoId && r.estado === 'perdido' && r.mascotaId !== null)
+    : undefined;
+  /** Mascota a la que queda vinculado el encontrado: la del QR o la del perdido. */
+  const mascotaId = identificada?.id ?? perdidoOrigen?.mascotaId ?? null;
   // Con QR, lo que ya se sabe de la mascota sale de los reportes activos.
   const perdida = identificada ? !!reporteActivo(reportes, identificada.id) : false;
-  /** true si quien escanea es de la familia (dueño o invitado): no se le ofrece escribirse. */
-  const asignado = identificada ? mascotas.some((m) => m.id === identificada.id) : false;
-  const yaAvisaron = identificada
-    ? reportes.some((r) => r.estado === 'encontrado' && r.mascotaId === identificada.id)
-    : false;
+  /** true si quien la encontró es de la familia (dueño o invitado): no puede avisar. */
+  const asignado = mascotaId !== null && mascotas.some((m) => m.id === mascotaId);
+  /** Encontrado que ya publicó el usuario sobre esta mascota, si hay. */
+  const propio = mascotaId !== null ? encontradoPropio(reportes, mascotaId, usuario?.id) : undefined;
+  /** No se muestra el formulario: es de su familia o ya avisó. */
+  const bloqueado = asignado || !!propio;
 
   // --- Identificación por QR ---
   /**
-   * Muestra la mascota identificada por el QR. Su id viaja como `mascotaId`
-   * del reporte, aunque sea de otra familia; sus datos no se cargan en el
+   * Muestra la mascota identificada por el QR. El reporte viaja con su
+   * código, aunque sea de otra familia; sus datos no se cargan en el
    * formulario porque no se editan.
    * @param mascota datos públicos de la mascota que devolvió el servidor
    */
   const identificar = useCallback((mascota: MascotaPublica) => {
-    setMascotaId(mascota.id);
     setIdentificada(mascota);
     setDescripcion('');
     setFoto(null);
@@ -135,17 +143,16 @@ export default function ReportarScreen() {
   }, []);
 
   /**
-   * Mensaje de WhatsApp para la familia: quien escaneó la chapita la tiene
-   * con él (`mensajeLaTengo`). Va sin ubicación.
-   * @param mascota mascota identificada
+   * Mensaje de WhatsApp para la familia, si el usuario ya avisó que la
+   * encontró (`mensajeLaTengo`). Va sin ubicación.
+   * @param encontrado el encontrado que publicó el usuario
    * @returns el texto del mensaje
    */
-  const mensajeHallazgo = (mascota: MascotaPublica): string =>
-    mensajeLaTengo({ para: mascota.dueno.nombre, yo: usuario?.nombre, mascota: mascota.nombre });
+  const mensajeHallazgo = (encontrado: ReportePerdida): string =>
+    mensajeLaTengo({ para: encontrado.contacto?.nombre, yo: usuario?.nombre, mascota: encontrado.nombre });
 
   /** Descarta la mascota identificada y vuelve a la cámara. */
   const escanearOtra = () => {
-    setMascotaId(null);
     setIdentificada(null);
     setDescripcion('');
     setFoto(null);
@@ -231,14 +238,15 @@ export default function ReportarScreen() {
 
   /** Valida, crea el reporte, vibra y vuelve a Perdidos mostrando el nuevo marker. */
   const handleReportar = async () => {
-    if (yaAvisaron) return;
-    // Sin QR, nombre y raza son opcionales (quien la encontró puede no saberlos), pero si se cargan se validan.
-    // Con QR no se cargan: el servidor los toma de la mascota.
+    if (bloqueado) return;
+    const vinculada = mascotaId !== null;
+    // Sin mascota, nombre y raza son opcionales (quien la encontró puede no saberlos), pero si se cargan se validan.
+    // Con mascota no se cargan: el servidor los toma de ella.
     const nuevos: Errores = {
-      nombre: identificada ? undefined : validarNombreMascota(nombre, false),
-      raza: identificada ? undefined : validarRaza(raza, false),
+      nombre: vinculada ? undefined : validarNombreMascota(nombre, false),
+      raza: vinculada ? undefined : validarRaza(raza, false),
       descripcion: validarTexto(descripcion, {
-        requerido: identificada
+        requerido: vinculada
           ? 'Contá dónde y cómo fue.'
           : 'Describí cómo es para que su familia la reconozca.',
         min: 5,
@@ -254,8 +262,10 @@ export default function ReportarScreen() {
     try {
       const reporte = await crearReporte({
         mascotaId,
+        // El código del QR prueba que tiene la chapita; desde un perdido alcanza el id.
+        ...(identificada && { codigo: identificada.codigo }),
         estado: 'encontrado',
-        ...(!identificada && {
+        ...(!vinculada && {
           nombre: limpiarTexto(nombre) || SIN_NOMBRE,
           raza: limpiarTexto(raza) || 'Sin especificar',
         }),
@@ -314,28 +324,16 @@ export default function ReportarScreen() {
                 </View>
               </View>
 
-              {/* Debajo, a todo el ancho: familia, aviso de perdida y teléfono */}
+              {/* Debajo, a todo el ancho: familia y aviso de perdida. El contacto
+                  aparece recién después de publicar el encontrado. */}
               <View style={styles.identificadaDetalle}>
                 <Text style={styles.identificadaDato}>{`Su familia: ${identificada.dueno.nombre}`}</Text>
                 {perdida && (
                   <Text style={styles.identificadaPerdida}>Se perdió: avisale a su familia.</Text>
                 )}
-                {/* Si es de la familia, ve el teléfono pero no se escribe a sí mismo. */}
-                {identificada.dueno.telefono && asignado && (
-                  <LinkTelefono telefono={identificada.dueno.telefono} nombre={identificada.dueno.nombre} />
-                )}
               </View>
 
-              {/* Botones del mismo ancho, uno debajo del otro */}
               <View style={styles.identificadaAcciones}>
-                {/* El servidor manda el teléfono a alguien ajeno solo si está perdida. */}
-                {identificada.dueno.telefono && !asignado && (
-                  <ContactoDueno
-                    telefono={identificada.dueno.telefono}
-                    nombre={identificada.dueno.nombre}
-                    armarMensaje={() => mensajeHallazgo(identificada)}
-                  />
-                )}
                 <PrimaryButton
                   title="Escanear otra"
                   icon="qr-code-scanner"
@@ -346,19 +344,45 @@ export default function ReportarScreen() {
                 />
               </View>
             </View>
+          ) : perdidoOrigen ? (
+            /* Desde el perdido del mapa: la mascota que busca su familia */
+            <View style={styles.card}>
+              <View style={styles.identificada}>
+                <Avatar foto={perdidoOrigen.foto} nombre={perdidoOrigen.nombre} size={sizes.avatarMd} />
+                <View style={styles.identificadaTexto}>
+                  <Text style={styles.identificadaNombre} numberOfLines={2}>
+                    {perdidoOrigen.nombre}
+                  </Text>
+                  <Text style={styles.identificadaDato}>{perdidoOrigen.raza}</Text>
+                </View>
+              </View>
+              <Text style={styles.identificadaPerdida}>
+                {`Se perdió en ${perdidoOrigen.zona}: contale a su familia dónde está ahora.`}
+              </Text>
+            </View>
           ) : (
             <EscanerQr onLectura={handleLectura} abrirAlMontar={reabrirCamara} />
           )}
 
-          {yaAvisaron && (
+          {bloqueado && (
             <View style={styles.aviso} accessibilityLiveRegion="polite">
               <MaterialIcons name="check-circle" size={sizes.iconMd} color={colors.primaryContainer} />
-              <Text style={styles.avisoTexto}>{MENSAJE_YA_AVISARON}</Text>
+              <View style={styles.avisoCuerpo}>
+                <Text style={styles.avisoTexto}>{asignado ? MENSAJE_ES_TUYA : MENSAJE_YA_AVISASTE}</Text>
+                {/* Quien ya avisó ve el contacto de la familia (el servidor se lo manda en su encontrado). */}
+                {!asignado && propio?.contacto && (
+                  <ContactoDueno
+                    telefono={propio.contacto.telefono}
+                    nombre={propio.contacto.nombre}
+                    armarMensaje={() => mensajeHallazgo(propio)}
+                  />
+                )}
+              </View>
             </View>
           )}
 
-          {identificada ? (
-            !yaAvisaron && (
+          {mascotaId !== null ? (
+            !bloqueado && (
               /* El hallazgo: lo único que completa quien la encontró */
               <View style={styles.card}>
                 <Input
@@ -376,7 +400,7 @@ export default function ReportarScreen() {
                 <View style={styles.fotoFila}>
                   <FotoEditable
                     foto={foto}
-                    nombre={identificada.nombre}
+                    nombre={identificada?.nombre ?? perdidoOrigen?.nombre ?? ''}
                     onPress={handleFoto}
                     cargando={fototeca.eligiendo}
                     size={sizes.avatarSm + 16}
@@ -454,7 +478,7 @@ export default function ReportarScreen() {
             </View>
           )}
 
-          {!yaAvisaron && (
+          {!bloqueado && (
             <>
               {/* Dónde se la encontró */}
               <View style={styles.card}>
@@ -486,7 +510,7 @@ export default function ReportarScreen() {
                 )}
               </View>
 
-              {identificada ? (
+              {mascotaId !== null ? (
                 <View style={styles.publicar}>
                   <PrimaryButton
                     title="Avisarle a su familia"
@@ -497,7 +521,7 @@ export default function ReportarScreen() {
                     style={styles.boton}
                   />
                   <Text style={styles.publicarAyuda}>
-                    Le vamos a mostrar tu nombre y teléfono para que te contacte
+                    Su familia va a ver tu nombre y teléfono, y vos el de su familia, para coordinar la vuelta
                   </Text>
                 </View>
               ) : (
@@ -551,10 +575,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: colors.secondaryContainer30,
   },
+  avisoCuerpo: {
+    flex: 1,
+    gap: spacing.sm,
+  },
   avisoTexto: {
     ...typography.bodySm,
     color: colors.onSurface,
-    flex: 1,
   },
   publicar: {
     gap: spacing.sm,
