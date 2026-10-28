@@ -23,22 +23,9 @@ const FOTOS_LOCALES = {
   milo: require('@/assets/images/milo.jpg'),
   toby: require('@/assets/images/toby.jpg'),
   pipa: require('@/assets/images/pipa.jpg'),
-  simba: require('@/assets/images/simba.jpg'),
-  'sin-collar': require('@/assets/images/sin-collar.jpg'),
-  nieve: require('@/assets/images/nieve.jpg'),
-  caniche: require('@/assets/images/caniche.jpg'),
-  rocky: require('@/assets/images/rocky.jpg'),
-  labrador: require('@/assets/images/labrador.jpg'),
-  salchicha: require('@/assets/images/salchicha.jpg'),
   sofia: require('@/assets/images/sofia.jpg'),
-  carlos: require('@/assets/images/carlos.jpg'),
-  martin: require('@/assets/images/martin.jpg'),
-  valentina: require('@/assets/images/valentina.jpg'),
   julian: require('@/assets/images/julian.jpg'),
-  marcos: require('@/assets/images/marcos.jpg'),
-  sol: require('@/assets/images/sol.jpg'),
   lucia: require('@/assets/images/lucia.jpg'),
-  'vet-san-roque': require('@/assets/images/vet-san-roque.jpg'),
 } satisfies Record<string, number>;
 
 export type ClaveFotoLocal = keyof typeof FOTOS_LOCALES;
