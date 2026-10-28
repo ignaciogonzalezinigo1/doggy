@@ -128,7 +128,7 @@ Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. 
 Porque es el contacto que ve quien encuentra a la mascota cuando está perdida. Antes quedaba vacío hasta completar el perfil. El servidor lo valida y lo guarda en E.164 con la misma función que el perfil (`leerTelefono`).
 
 **¿Cuándo aparece WhatsApp y por qué?**
-Solo para celulares (`esCelular`, con el tipo de número de libphonenumber-js) y solo cuando la app ya puede ver el teléfono: quien escanea el QR lo ve si la mascota está perdida (el servidor no lo manda en otro caso), quien mira un perdido de otra familia en Perdidos ve el de quien lo publicó, y el tutor ve el de quien la encontró en "¡Encontraron a …!". Para contactar a la familia, "Escribirle por WhatsApp" es la acción principal y "o llamar" un link chico; con un fijo solo aparece el link (`ContactoDueno`). Nunca se le ofrece al dueño ni a un asignado. El link se arma con una sola función, `enlaceWhatsApp` (`wa.me`), y cada mensaje con otra: `mensajeGracias` (la familia a quien la encontró), `mensajeLaTengo` (desde el QR: la tengo conmigo) y `mensajeLaVi` (desde Perdidos: creo que la vi). Ninguno lleva ubicación: el mensaje es para empezar a hablar, y así no hay que pedir el permiso de ubicación solo para armarlo. Van con el primer nombre de cada persona y, si falta un dato, se arman sin esa parte (nunca queda "undefined").
+Solo para celulares (`esCelular`, con el tipo de número de libphonenumber-js) y solo entre la familia y quien encontró a la mascota: quien publicó un encontrado vinculado ve el de la familia (en su card y en el detalle en Perdidos), y la familia ve el de quien la encontró en el aviso. Ver un perdido en el mapa o escanear el QR no da para contactar: hay que publicar el encontrado. Para contactar a la familia, "Escribirle por WhatsApp" es la acción principal y "o llamar" un link chico; con un fijo solo aparece el link (`ContactoDueno`). Nunca se le ofrece al dueño ni a un asignado. El link se arma con una sola función, `enlaceWhatsApp` (`wa.me`), y cada mensaje con otra: `mensajeGracias` (la familia a quien la encontró) y `mensajeLaTengo` (quien la encontró a la familia: "te avisé en Doggy dónde está"). Ninguno lleva ubicación: el mensaje es para empezar a hablar, y así no hay que pedir el permiso de ubicación solo para armarlo. Van con el primer nombre de cada persona y, si falta un dato, se arman sin esa parte (nunca queda "undefined").
 → `doggy/mobile/src/utils/enlaces.ts`, `doggy/mobile/src/utils/mensajes.ts`, `doggy/mobile/src/components/ContactoDueno.tsx`
 
 **¿Por qué los teléfonos se guardan en E.164?**
@@ -160,23 +160,26 @@ Porque una edad guardada queda vieja al año. Se guarda la fecha (sin hora) y la
 `npm run db:migrar-fecha-nacimiento`: suma `fechaNacimiento` como columna opcional, la completa con hoy menos la edad de cada mascota y recién después `prisma db push` saca `edad` y la deja obligatoria. Con `db push` solo no se puede, porque no sabe qué fecha ponerle a las mascotas que ya están.
 
 **¿Se puede avisar que encontraste una mascota que no está perdida?**
-Sí, a propósito: la familia puede no saber todavía que se escapó, y como no está perdida no se muestra su teléfono, así que el aviso es la única forma de contactarla. Quien la encontró queda visible para la familia (nombre y teléfono), y la app se lo dice antes de publicar. Hay un solo aviso activo por mascota: el segundo da 409 "Ya le avisaron a su familia.".
+Sí, escaneando su QR, a propósito: la familia puede no saber todavía que se escapó. Es el caso dudoso: la familia ve "Alguien encontró a {nombre}. ¿Se perdió {nombre}?" y responde "Sí, se perdió" (el servidor crea el perdido con el lugar del encontrado, `POST /api/reportes/:id/perdida`, y pasa a reencuentro) o "No, está conmigo" (cierra el aviso como "No se había perdido"). Quien la encontró y la familia se ven el contacto, y la app lo dice antes de publicar. Cada persona tiene un aviso activo por mascota: el segundo da 409 "Ya avisaste que encontraste a esta mascota.".
+
+**¿Por qué sin QR solo se puede vincular a una mascota perdida?**
+Porque vincularse da el contacto de la familia. Los ids son correlativos: si alcanzara con el `mascotaId`, cualquiera podría avisar que encontró a todas las mascotas y juntar teléfonos. Con el QR, el `codigo` prueba que tiene la chapita; sin el QR, solo vale sobre una mascota con un perdido activo ("Encontré a {nombre}" desde el mapa), cuando la familia ya está pidiendo ayuda. Si no, 403 "Para avisarle a su familia, escaneá el QR de su chapita.". Tampoco se puede sobre una mascota propia o asignada (403).
 → `doggy-backend/src/rutas/reportes.ts` (POST), `doggy/mobile/app/reportar.tsx`
 
 **Si alguien publica un "encontrado", ¿se cierra el "perdido"?**
-No. El perdido sigue activo hasta que la familia la tiene de vuelta, porque encontrarla no es recuperarla: si se cerrara, desaparecería del mapa y otros vecinos dejarían de buscarla aunque todavía no volvió a casa. Mientras tanto el perdido muestra "¡La encontraron! Esperando que su familia la recupere" en su pin (teal con un tilde), en la lista y en su detalle, con el lugar y la hora del hallazgo.
-→ `doggy/mobile/src/utils/selectores.ts` (`hallazgoDe`), `doggy/mobile/src/components/perdidos/DetalleReporte.tsx`
+No. El perdido sigue activo hasta que la familia la tiene de vuelta, porque encontrarla no es recuperarla. Los dos activos son un reencuentro: en el mapa, un pin verde con tilde y "¡Reencuentro!" en el lugar del encontrado (donde está ahora); en el detalle, cuándo y dónde se perdió.
+→ `doggy/mobile/src/utils/selectores.ts` (`reencuentrosPorReporte`), `doggy/mobile/src/components/perdidos/DetalleReporte.tsx`
 
-**¿Por qué un solo pin por mascota?**
-Para que el mapa no muestre la misma mascota dos veces (perdida en un lugar y encontrada en otro). Si un encontrado tiene el `mascotaId` de una mascota con un perdido en la lista, no se dibuja aparte: su ubicación está en el detalle del perdido. Con el filtro "Encontrados", esas mascotas aparecen como su perdido con "¡La encontraron!", no como el encontrado suelto. Los encontrados sin mascota, o de mascotas no perdidas, se dibujan igual que antes.
-→ `doggy/mobile/src/utils/selectores.ts` (`unoPorMascota`, `reportesDePerdidos`), `doggy/mobile/app/(tabs)/perdidos.tsx`
+**¿Por qué un solo pin por reencuentro, y en el lugar del encontrado?**
+Para que el mapa no muestre la misma mascota dos o más veces (perdida en un lugar y encontrada en otro, o encontrada por dos personas). Se dibuja el encontrado más reciente porque es donde está ahora la mascota, que es lo que le sirve a la familia; el lugar donde se perdió queda en el detalle. Aparece con los filtros "Todos" y "Encontrados". Los encontrados sin mascota, o de mascotas no perdidas, se dibujan teal como siempre.
+→ `doggy/mobile/src/utils/selectores.ts` (`reportesDePerdidos`), `doggy/mobile/app/(tabs)/perdidos.tsx`
 
 **¿Por qué a veces dice "Ya apareció" y a veces "Ya volvió a casa"?**
 Porque no es lo mismo: "Ya volvió a casa" cierra un perdido que alguien encontró (o el aviso "¡Encontraron a …!") y queda "Devuelta a su familia"; "Ya apareció" cierra un perdido sin encontrado y queda "Apareció". El texto sale de una sola función, `botonCierre`, en todos los botones y confirmaciones.
 → `doggy/mobile/src/utils/etiquetas.ts`
 
-**¿Quién decide si quedó "Devuelta a su familia" o "Apareció"?**
-El servidor, al cerrar (`PATCH { cerrado: true }`): un perdido con un encontrado activo, o un encontrado cerrado por alguien asignado a la mascota ("Ya volvió a casa"), cierra los dos reportes en una transacción con `resultado: "devuelta"` y la misma fecha; un perdido sin encontrado ("Ya apareció") queda `"aparecio"`. Así no depende de que la app mande dos pedidos en orden, y el resultado no se puede inventar desde el cliente. Quien no es el autor ni está asignado a la mascota no puede cerrar (403).
+**¿Quién decide si quedó "Devuelta a su familia", "Apareció" o "No se había perdido"?**
+El servidor, al cerrar (`PATCH { cerrado: true }`): en un reencuentro, cerrar el perdido o un encontrado siendo de la familia ("Ya volvió a casa") cierra el perdido y todos los encontrados en una transacción con `resultado: "devuelta"` y la misma fecha; un perdido sin encontrado ("Ya apareció") queda `"aparecio"`; un encontrado sin perdido cerrado por la familia ("No, está conmigo") queda `"descartado"`. Así no depende de que la app mande dos pedidos en orden, y el resultado no se puede inventar desde el cliente. Quien no es el autor ni está asignado a la mascota no puede cerrar (403).
 → `doggy-backend/src/rutas/reportes.ts` (`cierreDe`)
 
 **¿Cómo se agregó el resultado sin perder datos?**
@@ -185,11 +188,8 @@ El servidor, al cerrar (`PATCH { cerrado: true }`): un perdido con un encontrado
 **¿Quien escanea el QR puede cambiar los datos de la mascota?**
 No. La app los muestra de solo lectura y no los manda, y el servidor, si el reporte trae `mascotaId`, toma el nombre y la raza de la mascota e ignora los del body. Editar la mascota en sí nunca fue posible: el PATCH de una mascota ajena da 403.
 
-**¿Quién ve el contacto de quien encontró a la mascota?**
-Solo las personas asignadas a esa mascota (dueños e invitados). En `GET /api/reportes`, los `encontrado` de una mascota asignada al usuario que publicó otra persona traen `contacto: { nombre, telefono }`; a nadie más se le manda. Así la familia puede llamar o escribir por WhatsApp a quien la encontró, desde "¡Encontraron a …!".
-
-**¿Y el teléfono de la familia en Perdidos no es un problema de privacidad?**
-No es más que lo que ya mostraba el QR: el teléfono de la familia es público mientras la mascota está perdida, porque es justo cuando hace falta. Los `perdido` traen `contacto` de quien los publicó solo para quien no está asignado a la mascota; cuando se cierra el reporte, deja de verse.
+**¿Quién ve el contacto de quién?**
+Solo se ven entre la familia y quien encontró a la mascota, y lo decide el servidor en `GET /api/reportes`: los `encontrado` vinculados traen `contacto` del autor para los asignados a la mascota, y de la familia (quien publicó el perdido o, si no hay, un dueño) para el autor. Los `perdido` no traen contacto: antes cualquiera que veía un perdido recibía el teléfono de la familia, y ahora hace falta decir que la encontraste. A nadie más se le manda, y el dueño nunca ve "contactar al dueño" sobre su propio perro.
 → `doggy-backend/src/rutas/reportes.ts` (GET), `doggy/mobile/src/components/mascotas/AvisoEncontrada.tsx`
 
 **¿Por qué el código de asignación es de un solo uso?**
@@ -322,18 +322,18 @@ SQLite no guarda listas. La ruta las convierte a `etiquetas: string[]` antes de 
 → `doggy-backend/src/respuestas.ts` (`aReporte`)
 
 **¿Cómo prueban la API?**
-`npm test` en `doggy-backend`: más de 250 chequeos con `curl` contra una base aparte (`test.db`) y la API en el puerto 3001, con todos los casos de error y de permisos entre usuarios.
+`npm test` en `doggy-backend`: más de 500 chequeos con `curl` contra una base aparte (`test.db`) y la API en el puerto 3001, con todos los casos de error y de permisos entre usuarios.
 → `doggy-backend/scripts/probar.sh`
 
 ## Guion de demo
 
 Antes: `npm run db:reset` en `doggy-backend` (deja la demo limpia y las fechas al día). Contraseña de todos: `doggy1234`.
 
-1. **Sofía** (`sofia.romero@mail.com`). Mis Mascotas: arriba aparece "¡Encontraron a Milo!", con dónde y cuándo, y "Escribirle por WhatsApp" a Valentina. Abrir Luna → Carnet: próximo refuerzo de la antirrábica, la séxtuple con el refuerzo vencido, desparasitaciones y "Análisis de sangre" en Otros. Tocar "Ver etiqueta" si hay una cargada y hacer zoom. Roco tiene una sola vacuna: deslizarla para mostrar "Eliminar" (cancelar). Agenda: turnos pasados y próximos.
-2. **Sofía**, Perdidos: mapa con los reportes en Palermo, Belgrano, Villa Urquiza, Caballito, Almagro, Núñez y Saavedra; filtrar perdidos y encontrados. Rocky tiene un solo pin, teal con un tilde: "¡La encontraron!".
-3. **Marcos** (`marcos.diaz@mail.com`). Mis Mascotas: "¡Encontraron a Rocky!" con el contacto de Martín. En Perdidos, el detalle de Rocky muestra dónde y cuándo lo encontraron. "Ya volvió a casa": se cierran el perdido y el encontrado ("Devuelta a su familia") y Rocky sale del mapa.
+1. **Sofía** (`sofia.romero@mail.com`). Mis Mascotas: arriba aparece "Alguien encontró a Milo. ¿Se perdió Milo?" (Valentina escaneó su QR), con la foto, dónde y cuándo, "Escribirle por WhatsApp" a Valentina, "Sí, se perdió" y "No, está conmigo". Abrir Luna → Carnet: próximo refuerzo de la antirrábica, la séxtuple con el refuerzo vencido, desparasitaciones y "Análisis de sangre" en Otros. Tocar "Ver etiqueta" si hay una cargada y hacer zoom. Roco tiene una sola vacuna: deslizarla para mostrar "Eliminar" (cancelar). Agenda: turnos pasados y próximos.
+2. **Sofía**, Perdidos: mapa con los reportes en Palermo, Belgrano, Villa Urquiza, Caballito, Almagro, Núñez y Saavedra; filtrar perdidos y encontrados. Rocky tiene un solo pin verde con un tilde ("¡Reencuentro!") en Saavedra, donde lo encontró Martín.
+3. **Marcos** (`marcos.diaz@mail.com`). Mis Mascotas: "¡Encontraron a Rocky!" con el contacto de Martín. En Perdidos, el detalle de Rocky muestra el mismo aviso y cuándo y dónde se perdió. "Ya volvió a casa": se cierran el perdido y el encontrado ("Devuelta a su familia") y Rocky sale del mapa.
 4. **Julián** (`julian.fernandez@mail.com`). Perfil de Pipa: está reportada como perdida; "Descargar QR" o "Compartir QR" para tener la imagen.
-5. **Lucía** (`lucia.gomez@mail.com`). "Encontré una mascota" → escanear el QR de Pipa (con la cámara o desde la imagen): tarjeta de solo lectura con "Su familia: Julián" y "Escribirle por WhatsApp" con el mensaje armado ("¡Hola Julián! Soy Lucía. Encontré a Pipa gracias a su chapita de Doggy y está conmigo. ¿Cómo coordinamos para que vuelva a casa?", sin ubicación) y "o llamar". En Perdidos, el detalle de Pipa ofrece lo mismo con el mensaje "Vi en Doggy el aviso de Pipa…". Escanear el QR de Luna: solo "Su familia: Sofía", sin teléfono, porque no está perdida.
+5. **Lucía** (`lucia.gomez@mail.com`). En Perdidos, el detalle de Pipa no tiene contacto: tiene "Encontré a Pipa". Tocarlo, sacar una foto, marcar el punto y "Avisarle a su familia": Pipa pasa a un pin verde de reencuentro y el detalle ofrece "Escribirle por WhatsApp" a Julián ("¡Hola Julián! Soy Lucía. Encontré a Pipa y te avisé en Doggy dónde está. ¿Cómo coordinamos para que vuelva a casa?"). "Encontré una mascota" → escanear el QR de Luna: tarjeta de solo lectura con "Su familia: Sofía", sin contacto hasta publicar.
 6. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada.
 7. **Vet. San Roque** (`contacto@vetsanroque.com`): teléfono fijo, así que en sus avisos no aparece WhatsApp.
 8. **Sofía**, Perfil → Familia y Cuidadores → Roco: "Quitar" en Marcos (invitado) → confirmar. Con **Marcos**, Roco ya no aparece al refrescar. Con la **Vet. San Roque**, en Luna: "Dejar de cuidar a Luna".
