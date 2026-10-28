@@ -73,6 +73,7 @@ import type {
   MascotaPublica,
   NuevaMascota,
   NuevoRegistro,
+  NuevoEncontrado,
   NuevoReporte,
   NuevoTurno,
   RegistroSanitario,
@@ -122,6 +123,8 @@ type AppAcciones = {
   /** Busca cualquier mascota por el código de su QR (null si no existe). No toca el estado. */
   buscarMascotaPorCodigo: (codigo: string) => Promise<MascotaPublica | null>;
   crearReporte: (datos: NuevoReporte) => Promise<ReportePerdida>;
+  /** Publica un encontrado con el código del QR de la chapita (no lleva foto: es la de la mascota). */
+  avisarEncontrado: (datos: NuevoEncontrado) => Promise<ReportePerdida>;
   editarReporte: (id: number, cambios: CambiosReporte) => Promise<ReportePerdida>;
   /**
    * Cierra un reporte porque la mascota apareció o volvió a casa: sale del
@@ -450,9 +453,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setReportes((prev) => prev.filter((r) => r.mascotaId !== id));
   }, []);
 
-  /** Publica un reporte de mascota perdida o encontrada. */
+  /** Publica un reporte de mascota perdida. */
   const crearReporte = useCallback(async (datos: NuevoReporte) => {
     const nuevo = await reportesService.crearReporte(await conFotoSubida(datos, 'foto'));
+    setReportes((prev) => [...prev, nuevo]);
+    return nuevo;
+  }, []);
+
+  /** Publica un encontrado escaneando la chapita y lo suma a la lista. */
+  const avisarEncontrado = useCallback(async (datos: NuevoEncontrado) => {
+    const nuevo = await reportesService.crearEncontrado(datos);
     setReportes((prev) => [...prev, nuevo]);
     return nuevo;
   }, []);
@@ -603,6 +613,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       eliminarMascota,
       buscarMascotaPorCodigo,
       crearReporte,
+      avisarEncontrado,
       editarReporte,
       cerrarReporte,
       confirmarPerdida,
@@ -630,6 +641,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       eliminarMascota,
       buscarMascotaPorCodigo,
       crearReporte,
+      avisarEncontrado,
       editarReporte,
       cerrarReporte,
       confirmarPerdida,

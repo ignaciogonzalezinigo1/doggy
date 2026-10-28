@@ -4,7 +4,7 @@
  * Un reporte lo edita o lo cierra quien lo publicó o cualquier persona
  * asignada a la mascota (lo controla el servidor).
  */
-import type { CambiosReporte, NuevoReporte, ReportePerdida } from '@/types/models';
+import type { CambiosReporte, NuevoEncontrado, NuevoReporte, ReportePerdida } from '@/types/models';
 import { conCuerpo, pedirJson } from './http';
 
 /**
@@ -17,15 +17,26 @@ export async function obtenerReportes(): Promise<ReportePerdida[]> {
 }
 
 /**
- * Publica un reporte nuevo. Un encontrado vinculado manda el `codigo` del QR
- * o el `mascotaId` de una mascota perdida.
+ * Publica un perdido de una mascota del usuario.
  * Endpoint: POST /api/reportes
- *   { estado, mascotaId, codigo?, nombre, raza, descripcion, foto, etiquetas, lat, lng, zona, fecha,
+ *   { estado: 'perdido', mascotaId, descripcion, foto, lat, lng, zona, fecha,
  *     radioMetros?, infoAdicional? } -> 201 ReportePerdida
  * @param datos datos del reporte
  * @returns el reporte creado
  */
 export async function crearReporte(datos: NuevoReporte): Promise<ReportePerdida> {
+  return pedirJson<ReportePerdida>('/api/reportes', conCuerpo('POST', datos));
+}
+
+/**
+ * Publica un encontrado: solo con el código del QR de la chapita (400 sin
+ * código, 403 si la mascota es del usuario, 409 si ya avisó).
+ * Endpoint: POST /api/reportes
+ *   { estado: 'encontrado', codigo, mascotaId?, lat, lng, zona, fecha, infoAdicional? } -> 201 ReportePerdida
+ * @param datos dónde está y el comentario opcional
+ * @returns el encontrado creado, con los datos de la mascota
+ */
+export async function crearEncontrado(datos: NuevoEncontrado): Promise<ReportePerdida> {
   return pedirJson<ReportePerdida>('/api/reportes', conCuerpo('POST', datos));
 }
 

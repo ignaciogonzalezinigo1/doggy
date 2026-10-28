@@ -375,7 +375,7 @@ export default function MiMascotaPerdidaScreen() {
               </View>
               <Input
                 label="¿Qué tenía puesto? ¿Algo más para saber?"
-                placeholder="Ej: buzo rojo y arnés negro, sin chapita. Se asusta con las motos."
+                placeholder="Ej: buzo rojo y arnés negro. Se asusta con las motos."
                 value={infoAdicional}
                 onChangeText={(texto) => {
                   setInfoAdicional(texto);

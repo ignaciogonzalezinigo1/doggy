@@ -15,9 +15,9 @@
  * conmigo". Si el perdido es del usuario (o él lo publicó), suma "Editar
  * reporte" y "Ya apareció", que lo cierra y lo saca del mapa.
  * Si el usuario publicó que la encontró (viene `contacto`), lo primero
- * después de la foto es escribirle a la familia por WhatsApp o llamar.
- * Quien ve el perdido de otra familia no tiene contacto: tiene "Encontré a
- * {nombre}", que abre el formulario de encontrado vinculado a esa mascota.
+ * después de la foto es escribirle a la familia por WhatsApp (no se ofrece
+ * llamar). Quien ve el perdido de otra familia no tiene contacto ni puede
+ * avisar desde acá: un encontrado se publica solo escaneando la chapita.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState, type ComponentProps } from 'react';
@@ -61,14 +61,13 @@ type Props = {
   onYaAparecio?: (reporte: ReportePerdida) => void;
   /** true mientras se cierra el reporte. */
   cerrando?: boolean;
-  /** Familia a la que le escribe quien la encontró (ver `contactoDeLaFamilia`). */
-  contacto?: ReportePerdida['contacto'];
+  /**
+   * Familia a la que le escribe quien la encontró (ver `encontradoDelUsuario`):
+   * null si no cargó teléfono, undefined si el usuario no la encontró.
+   */
+  contacto?: ReportePerdida['contacto'] | null;
   /** Arma el mensaje de WhatsApp para el reporte. */
   armarMensaje?: (reporte: ReportePerdida) => string;
-  /** Perdido sobre el que el usuario puede avisar "Encontré a …" (ver `perdidoParaAvisar`). */
-  perdidoParaAvisar?: ReportePerdida;
-  /** Abre el formulario de encontrado vinculado a la mascota de ese perdido. */
-  onEncontre?: (perdido: ReportePerdida) => void;
 };
 
 /**
@@ -90,8 +89,6 @@ export function DetalleReporte({
   cerrando = false,
   contacto,
   armarMensaje,
-  perdidoParaAvisar,
-  onEncontre,
 }: Props) {
   if (!reporte) return null;
 
@@ -109,17 +106,14 @@ export function DetalleReporte({
         </View>
       )}
 
-      {contacto && armarMensaje && (
+      {contacto !== undefined && armarMensaje && (
         <View style={styles.contacto}>
           <Text style={styles.contactoTexto}>
-            Avisaste que encontraste a {reporte.nombre}. Escribile a {contacto.nombre}, de su familia, para
-            coordinar la vuelta.
+            {contacto
+              ? `Avisaste que encontraste a ${reporte.nombre}. Escribile a ${contacto.nombre}, de su familia, para coordinar la vuelta.`
+              : `Avisaste que encontraste a ${reporte.nombre}.`}
           </Text>
-          <ContactoDueno
-            telefono={contacto.telefono}
-            nombre={contacto.nombre}
-            armarMensaje={() => armarMensaje(reporte)}
-          />
+          <ContactoDueno contacto={contacto} armarMensaje={() => armarMensaje(reporte)} />
         </View>
       )}
 
@@ -167,9 +161,12 @@ export function DetalleReporte({
         )}
       </View>
 
-      <Seccion titulo={perdido ? 'Señas particulares' : 'Descripción'} texto={reporte.descripcion} />
+      <Seccion titulo="Señas particulares" texto={reporte.descripcion} />
       {!!reporte.infoAdicional && (
-        <Seccion titulo="Información adicional" texto={reporte.infoAdicional} />
+        <Seccion
+          titulo={perdido ? 'Información adicional' : 'Comentario de quien la encontró'}
+          texto={reporte.infoAdicional}
+        />
       )}
 
       <PrimaryButton
@@ -179,16 +176,6 @@ export function DetalleReporte({
         variant="outline"
         onPress={() => onVerEnMapa(reporte)}
       />
-
-      {/* Quien la encontró en la calle avisa desde el perdido, ya vinculado a la mascota. */}
-      {perdidoParaAvisar && onEncontre && (
-        <PrimaryButton
-          title={`Encontré a ${perdidoParaAvisar.nombre}`}
-          icon="volunteer-activism"
-          iconLeft
-          onPress={() => onEncontre(perdidoParaAvisar)}
-        />
-      )}
 
       {/* Acciones del tutor: corregir el reporte o sacarlo porque ya apareció. */}
       {puedeGestionar && (

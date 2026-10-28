@@ -15,12 +15,12 @@
  * Si el reporte es de una mascota del usuario, desde el detalle se lo puede
  * editar (abre "Se perdió mi mascota" en modo edición) o cerrar con "Ya apareció"
  * ("Ya volvió a casa" si alguien la encontró).
- * Contacto: solo quien publicó un encontrado vinculado a la mascota ve
- * "Escribirle por WhatsApp" a la familia (`mensajeLaTengo`) y "o llamar", en
- * su card y en el detalle. La familia ve en el detalle el aviso con el
- * contacto de quien la encontró. Los demás no tienen contacto: en el detalle
- * de un perdido ajeno tienen "Encontré a …", que abre "Encontré una mascota"
- * ya vinculado a esa mascota (`perdidoId`).
+ * Contacto, solo por WhatsApp: quien publicó un encontrado vinculado a la
+ * mascota (escaneando su chapita) ve "Escribirle por WhatsApp" a la familia
+ * (`mensajeLaTengo`) en su card y en el detalle. La familia ve en el detalle
+ * el aviso con el contacto de quien la encontró. Los demás no tienen
+ * contacto, y desde Perdidos nadie avisa que encontró un perro: eso es solo
+ * escaneando el QR en "Encontré una mascota".
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -59,9 +59,8 @@ import type { ReportePerdida } from '@/types/models';
 import { mensajeLaTengo } from '@/utils/mensajes';
 import {
   avisoDeMascota,
-  contactoDeLaFamilia,
+  encontradoDelUsuario,
   FiltroEstado,
-  perdidoParaAvisar,
   puedeGestionarReporte,
   reencuentrosPorReporte,
   reportesDePerdidos,
@@ -140,10 +139,14 @@ export default function PerdidosScreen() {
   /**
    * Contacto de la familia para el usuario, si publicó que encontró a esa mascota.
    * @param reporte reporte de Perdidos
-   * @returns nombre y teléfono, o undefined
+   * @returns nombre y teléfono, null si la familia no cargó teléfono, o
+   *   undefined si el usuario no la encontró (no se muestra nada)
    */
   const contactoDe = useCallback(
-    (reporte: ReportePerdida) => contactoDeLaFamilia(reporte, reencuentros.get(reporte.id), usuario?.id, mascotas),
+    (reporte: ReportePerdida) => {
+      const propio = encontradoDelUsuario(reporte, reencuentros.get(reporte.id), usuario?.id, mascotas);
+      return propio ? (propio.contacto ?? null) : undefined;
+    },
     [reencuentros, usuario?.id, mascotas],
   );
 
@@ -241,20 +244,6 @@ export default function PerdidosScreen() {
     setTimeout(
       () =>
         router.push({ pathname: '/mi-mascota-perdida', params: { reporteId: String(reporte.id) } }),
-      ESPERA_CIERRE_HOJA_MS,
-    );
-  }, []);
-
-  /**
-   * "Encontré a …" del detalle: cierra la hoja y abre "Encontré una mascota"
-   * vinculado a la mascota de ese perdido.
-   * @param perdido perdido de otra familia
-   */
-  const avisarQueLaEncontre = useCallback((perdido: ReportePerdida) => {
-    setDetalleVisible(false);
-    // En iOS no se puede presentar un modal mientras otro se está cerrando.
-    setTimeout(
-      () => router.push({ pathname: '/reportar', params: { perdidoId: String(perdido.id) } }),
       ESPERA_CIERRE_HOJA_MS,
     );
   }, []);
@@ -492,10 +481,6 @@ export default function PerdidosScreen() {
         cerrando={cerrando}
         contacto={detalle ? contactoDe(detalle) : undefined}
         armarMensaje={armarMensaje}
-        perdidoParaAvisar={
-          detalle ? perdidoParaAvisar(detalle, reencuentros.get(detalle.id), usuario?.id, mascotas) : undefined
-        }
-        onEncontre={avisarQueLaEncontre}
       />
 
       {/* Dos reportes distintos: el tutor que perdió a su mascota y el vecino que encontró una. */}

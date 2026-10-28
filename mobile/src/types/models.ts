@@ -190,17 +190,28 @@ export type NuevaMascota = Omit<Mascota, 'id' | 'codigo' | 'tutorId'>;
 export type NuevoRegistro = Omit<RegistroSanitario, 'id'>;
 export type NuevoTurno = Omit<Turno, 'id'>;
 /**
- * Reporte nuevo. La app ya no carga etiquetas: solo se muestran las que ya
- * tenían. Con mascota, el nombre y la raza no hace falta mandarlos: el
- * servidor los toma de ella (y los ignora si vienen). Un encontrado se
- * vincula con el `codigo` del QR de la chapita o, desde un perdido del mapa,
- * con su `mascotaId`.
+ * Perdido nuevo ("Se perdió mi mascota"). La app ya no carga etiquetas: solo
+ * se muestran las que ya tenían. El nombre y la raza no hace falta mandarlos:
+ * el servidor los toma de la mascota (y los ignora si vienen).
  */
 export type NuevoReporte = Omit<
   ReportePerdida,
   'id' | 'autorId' | 'etiquetas' | 'contacto' | 'nombre' | 'raza'
 > &
-  Partial<Pick<ReportePerdida, 'nombre' | 'raza'>> & { codigo?: string };
+  Partial<Pick<ReportePerdida, 'nombre' | 'raza'>>;
+/**
+ * Encontrado nuevo ("Encontré una mascota"): solo con el `codigo` del QR de
+ * la chapita, dónde está y un comentario opcional. El servidor pone el
+ * nombre, la raza, la foto y las señas de la mascota.
+ */
+export type NuevoEncontrado = Pick<ReportePerdida, 'lat' | 'lng' | 'zona' | 'fecha'> & {
+  estado: 'encontrado';
+  codigo: string;
+  /** Id de la mascota del código (opcional: si viene, tiene que coincidir). */
+  mascotaId?: number;
+  /** Comentario de quien la encontró. */
+  infoAdicional?: string;
+};
 /**
  * Cambios de un reporte publicado (PATCH): lo que no viene no se toca y
  * `infoAdicional: null` la borra (un `undefined` no viaja en el JSON).

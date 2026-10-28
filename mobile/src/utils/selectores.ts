@@ -303,46 +303,23 @@ export function puedeGestionarReporte(
 }
 
 /**
- * Contacto de la familia para quien encontró a la mascota: solo si el
- * usuario publicó un encontrado vinculado a ella (el servidor manda el
- * contacto únicamente en ese encontrado). Nunca para el dueño ni un asignado,
- * que ven el de quien la encontró en el aviso.
+ * Encontrado que publicó el usuario sobre la mascota de un reporte de
+ * Perdidos: solo así ve el contacto de la familia (el servidor se lo manda
+ * únicamente en ese encontrado). Nunca para el dueño ni un asignado, que ven
+ * el de quien la encontró en el aviso.
  * @param reporte reporte de Perdidos
  * @param reencuentro su reencuentro, si es parte de uno
  * @param usuarioId usuario logueado
  * @param mascotas mascotas de la cuenta del usuario
- * @returns nombre y teléfono de la familia, o undefined si no corresponde
+ * @returns su encontrado (con `contacto` si la familia cargó teléfono), o undefined
  */
-export function contactoDeLaFamilia(
-  reporte: ReportePerdida,
-  reencuentro: Reencuentro | undefined,
-  usuarioId: number | undefined,
-  mascotas: Mascota[],
-): ReportePerdida['contacto'] {
-  if (reporte.mascotaId === null || mascotas.some((m) => m.id === reporte.mascotaId)) return undefined;
-  const encontrados = reencuentro?.encontrados ?? [reporte];
-  return encontrados.find((r) => r.estado === 'encontrado' && r.autorId === usuarioId)?.contacto;
-}
-
-/**
- * Indica si el usuario puede avisar que encontró la mascota de un perdido
- * ("Encontré a …" en el detalle): es un perdido de una mascota registrada que
- * no es suya ni publicó él, y todavía no avisó que la encontró.
- * @param reporte reporte de Perdidos
- * @param reencuentro su reencuentro, si es parte de uno
- * @param usuarioId usuario logueado
- * @param mascotas mascotas de la cuenta del usuario
- * @returns el perdido sobre el que se avisa, o undefined si no corresponde
- */
-export function perdidoParaAvisar(
+export function encontradoDelUsuario(
   reporte: ReportePerdida,
   reencuentro: Reencuentro | undefined,
   usuarioId: number | undefined,
   mascotas: Mascota[],
 ): ReportePerdida | undefined {
-  const perdido = reencuentro?.perdido ?? (reporte.estado === 'perdido' ? reporte : undefined);
-  if (!perdido || perdido.mascotaId === null || usuarioId === undefined) return undefined;
-  if (perdido.autorId === usuarioId || mascotas.some((m) => m.id === perdido.mascotaId)) return undefined;
-  if (reencuentro?.encontrados.some((e) => e.autorId === usuarioId)) return undefined;
-  return perdido;
+  if (reporte.mascotaId === null || mascotas.some((m) => m.id === reporte.mascotaId)) return undefined;
+  const encontrados = reencuentro?.encontrados ?? [reporte];
+  return encontrados.find((r) => r.estado === 'encontrado' && r.autorId === usuarioId);
 }
