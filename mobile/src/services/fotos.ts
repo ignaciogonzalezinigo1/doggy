@@ -7,7 +7,7 @@
  * reporte o un registro, el `AppContext` pasa los datos por `conFotoSubida`:
  * si la foto es local la sube y la reemplaza por la ruta que devuelve el
  * servidor ("/uploads/abc.jpg"). Una foto que no cambió ya es una ruta del
- * servidor (o una clave del seed), así que no se vuelve a subir.
+ * servidor, así que no se vuelve a subir.
  *
  * Cómo viaja el archivo (SDK 58): el `fetch` global es el de `expo/fetch`,
  * que arma el multipart a mano y solo acepta strings, `Blob` u objetos con
@@ -99,8 +99,8 @@ export async function subirFoto(uri: string): Promise<string> {
 
 /**
  * Devuelve los datos con la foto ya subida: si el campo tiene una foto local,
- * la sube y lo reemplaza por la ruta del servidor; si no (no cambió, es una
- * clave del seed, es null o no vino), devuelve los mismos datos sin subir nada.
+ * la sube y lo reemplaza por la ruta del servidor; si no (no cambió, ya es una
+ * ruta del servidor, es null o no vino), devuelve los mismos datos sin subir nada.
  * @param datos lo que se va a mandar al servidor
  * @param campo campo con la foto ("foto" o "fotoEtiqueta")
  * @returns un objeto nuevo con la ruta del servidor, o el mismo si no había nada que subir
