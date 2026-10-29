@@ -9,7 +9,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import { spacing } from '@/theme';
-import { esCelular, telefonoParaEditar } from '@/utils/telefonos';
+import { telefonoParaEditar } from '@/utils/telefonos';
 import type { Usuario } from '@/types/models';
 import {
   LIMITES,
@@ -65,10 +65,6 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
     // Se edita sin el +54, que el input ya muestra ("11 4589-2310"); el servidor lo vuelve a guardar en E.164.
     telefonoEmergencia: usuario.telefonoEmergencia ? telefonoParaEditar(usuario.telefonoEmergencia) : '',
   });
-  // Un teléfono guardado como fijo arranca con la casilla marcada.
-  const [telefonoFijo, setTelefonoFijo] = useState(
-    () => !!usuario.telefonoEmergencia && !esCelular(usuario.telefonoEmergencia),
-  );
   const [errores, setErrores] = useState<Errores>({});
   const [guardando, setGuardando] = useState(false);
 
@@ -96,7 +92,6 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
         ubicacion: limpiarTexto(form.ubicacion),
         email: normalizarEmail(form.email),
         telefonoEmergencia: limpiarTexto(form.telefonoEmergencia),
-        telefonoFijo,
       });
       onGuardado();
     } catch (e) {
@@ -158,8 +153,6 @@ export function EditarPerfilForm({ usuario, onGuardado }: Props) {
         value={form.telefonoEmergencia}
         onChangeText={handleChange('telefonoEmergencia')}
         error={errores.telefonoEmergencia}
-        fijo={telefonoFijo}
-        onCambiarFijo={setTelefonoFijo}
         disabled={guardando}
       />
 

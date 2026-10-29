@@ -1,22 +1,22 @@
 /**
  * Input de teléfono, el mismo en el registro y en el perfil: "+54" fijo
  * adelante (solo se aceptan teléfonos de la Argentina), placeholder con un
- * ejemplo, teclado de teléfono, descarte de letras y símbolos mientras se
- * escribe, y la casilla "Es un teléfono fijo" (desmarcada por defecto: todo
- * número se guarda como celular, salvo que se marque).
+ * ejemplo, teclado de teléfono y descarte de letras y símbolos mientras se
+ * escribe. Todo número se guarda como celular: asumimos que quien usa la app
+ * tiene WhatsApp.
  *
  * El usuario escribe la característica y el número en cualquier formato. Si
  * pega o escribe el número con el código de país (+54, 54, 0054, 549), al
  * pegarlo y al salir del campo se saca solo (`quitarCodigoPais`) y se muestra
  * unos segundos "Ya agregamos el +54, escribí solo tu número". No es un
  * error: si lo que queda no es un número válido, lo dice `validarTelefono`
- * como siempre. El número se manda junto con `telefonoFijo`.
+ * como siempre.
  *
  * Diseño: el "+54" y el número van dentro del mismo borde de `Input`, con la
  * misma altura, fuente y tamaño que el resto de los campos y un separador
  * entre los dos. Debajo, con el mismo espaciado que el label y el error de
- * `Input` (8), el aviso del +54 y la casilla, alineados al borde izquierdo
- * del campo. Con `disabled` (mientras se guarda) se apagan el campo y la casilla.
+ * `Input` (8), el aviso del +54, alineado al borde izquierdo del campo. Con
+ * `disabled` (mientras se guarda) el campo no se puede editar.
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import { forwardRef, useEffect, useRef, useState } from 'react';
@@ -25,7 +25,6 @@ import { StyleSheet, Text, View, type TextInputInstance } from 'react-native';
 import { colors, sizes, spacing, typography } from '@/theme';
 import { quitarCodigoPais } from '@/utils/telefonos';
 import { filtrarTelefono, LIMITES } from '@/utils/validaciones';
-import { Casilla } from './Casilla';
 import { Input } from './Input';
 
 type Props = {
@@ -35,9 +34,6 @@ type Props = {
   /** Recibe el texto ya filtrado (sin letras ni símbolos) y sin el código de país si se pegó. */
   onChangeText: (texto: string) => void;
   error?: string;
-  /** true si está marcada "Es un teléfono fijo". */
-  fijo: boolean;
-  onCambiarFijo: (fijo: boolean) => void;
   returnKeyType?: 'next' | 'done' | 'go';
   onSubmitEditing?: () => void;
   /** true mientras se guarda el formulario: no se puede editar. */
@@ -52,9 +48,9 @@ const AVISO_CODIGO_PAIS = 'Ya agregamos el +54, escribí solo tu número';
 const AVISO_MS = 4000;
 
 /**
- * Campo de teléfono con el +54 fijo y la casilla de fijo.
+ * Campo de teléfono con el +54 fijo.
  * @param props ver `Props`
- * @returns el input, el aviso (si corresponde) y la casilla
+ * @returns el input y el aviso (si corresponde)
  */
 export const InputTelefono = forwardRef<TextInputInstance, Props>(function InputTelefono(
   {
@@ -62,8 +58,6 @@ export const InputTelefono = forwardRef<TextInputInstance, Props>(function Input
     value,
     onChangeText,
     error,
-    fijo,
-    onCambiarFijo,
     returnKeyType,
     onSubmitEditing,
     disabled = false,
@@ -147,7 +141,6 @@ export const InputTelefono = forwardRef<TextInputInstance, Props>(function Input
           <Text style={styles.avisoTexto}>{AVISO_CODIGO_PAIS}</Text>
         </View>
       )}
-      <Casilla label="Es un teléfono fijo" marcada={fijo} onCambiar={onCambiarFijo} disabled={disabled} />
     </View>
   );
 });

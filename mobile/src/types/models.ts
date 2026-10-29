@@ -220,5 +220,3 @@ export type CambiosReporte = Partial<Omit<NuevoReporte, 'infoAdicional'>> & {
   infoAdicional?: string | null;
 };
 export type DatosUsuario = Partial<Omit<Usuario, 'id'>>;
-/** Cambios del perfil: `telefonoFijo` dice cómo guardar el teléfono que viene (fijo o celular). */
-export type CambiosUsuario = DatosUsuario & { telefonoFijo?: boolean };

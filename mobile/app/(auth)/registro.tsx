@@ -5,7 +5,7 @@
  * Pide nombre, apellido, email, teléfono y contraseña con confirmación, y
  * valida todo localmente: nombre y apellido solo con letras, email con
  * formato válido, teléfono argentino real (la regla de `telefonos.ts`, con el mismo
- * `InputTelefono` con el +54 fijo y la misma casilla "Es un teléfono fijo" que el perfil) y contraseña de 8 a 64 caracteres,
+ * `InputTelefono` con el +54 fijo que el perfil; se guarda como celular) y contraseña de 8 a 64 caracteres,
  * sin espacios, con al menos una letra y un número. Cada campo tiene su largo máximo. Con todo válido crea la cuenta
  * contra la API, deja la sesión abierta y entra a la tab Mascotas con un
  * saludo que invita a completar el perfil. Si el servidor la rechaza (por
@@ -82,8 +82,6 @@ export default function RegistroScreen() {
 
   // --- Estado ---
   const [form, setForm] = useState<Formulario>(FORM_INICIAL);
-  /** "Es un teléfono fijo": desmarcada, el teléfono se guarda como celular. */
-  const [telefonoFijo, setTelefonoFijo] = useState(false);
   const [errores, setErrores] = useState<Errores>({});
   const [enviando, setEnviando] = useState(false);
   const apellidoRef = useRef<TextInputInstance>(null);
@@ -120,7 +118,6 @@ export default function RegistroScreen() {
         apellido: limpiarTexto(form.apellido),
         email: normalizarEmail(form.email),
         telefonoEmergencia: limpiarTexto(form.telefonoEmergencia),
-        telefonoFijo,
         password: form.password,
       });
       router.replace('/mascotas');
@@ -217,8 +214,6 @@ export default function RegistroScreen() {
           value={form.telefonoEmergencia}
           onChangeText={handleChange('telefonoEmergencia')}
           error={errores.telefonoEmergencia}
-          fijo={telefonoFijo}
-          onCambiarFijo={setTelefonoFijo}
           returnKeyType="next"
           onSubmitEditing={() => passwordRef.current?.focus()}
           disabled={enviando}
