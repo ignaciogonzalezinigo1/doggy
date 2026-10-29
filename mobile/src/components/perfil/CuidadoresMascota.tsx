@@ -1,7 +1,9 @@
 /**
  * Card de "Familia y Cuidadores" de una mascota: la mascota con su raza y
  * las personas asignadas con su rol (Dueño / Invitado); el usuario logueado
- * aparece marcado como "Vos".
+ * aparece marcado como "Vos". De cada persona se muestra solo la foto (o su
+ * inicial), el nombre y el rol: la app no tiene dónde cargar un detalle del
+ * vínculo, así que no se muestra.
  *
  * Solo si el usuario es dueño se muestra "Asignar", que genera un código de
  * asignación, y "Quitar" en la fila de cada invitado (no en la de otro dueño
@@ -9,11 +11,10 @@
  * dueño no se saca a sí mismo desde acá (para eso está "Eliminar mascota").
  */
 import { MaterialIcons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
-import type { Cuidador, Mascota, RolMascota, TipoCuidador, Usuario } from '@/types/models';
+import type { Cuidador, Mascota, RolMascota, Usuario } from '@/types/models';
 import { rolMascota } from '@/utils/etiquetas';
 import { Avatar } from '../Avatar';
 
@@ -34,15 +35,6 @@ type Props = {
 const ROLES: Record<RolMascota, { fondo: string; texto: string }> = {
   dueno: { fondo: colors.primaryFixed, texto: colors.onPrimaryFixedVariant },
   invitado: { fondo: colors.surfaceContainerHigh, texto: colors.onSurfaceVariant },
-};
-
-type IconName = ComponentProps<typeof MaterialIcons>['name'];
-
-/** Ícono y colores según el tipo de vínculo, para quien no tiene foto. */
-const TIPOS: Record<TipoCuidador, { icon: IconName; fondo: string; texto: string }> = {
-  familia: { icon: 'family-restroom', fondo: colors.primaryFixed, texto: colors.onPrimaryFixedVariant },
-  clinica: { icon: 'local-hospital', fondo: colors.tertiaryFixed, texto: colors.onTertiaryFixed },
-  paseador: { icon: 'directions-walk', fondo: colors.surfaceContainerHigh, texto: colors.onSurfaceVariant },
 };
 
 /** Diámetro del avatar de cada cuidador. */
@@ -89,7 +81,6 @@ export function CuidadoresMascota({ mascota, cuidadores, usuario, onAsignar, onD
       </View>
 
       {ordenados.map((cuidador) => {
-        const tipo = TIPOS[cuidador.tipo];
         const rol = ROLES[cuidador.rol];
         const esVos = cuidador.usuarioId === usuario.id;
         // La fila propia usa los datos actuales del usuario (pudo cambiar su foto).
@@ -97,20 +88,12 @@ export function CuidadoresMascota({ mascota, cuidadores, usuario, onAsignar, onD
         const foto = esVos ? usuario.foto : cuidador.foto;
         return (
           <View key={cuidador.id} style={[styles.cuidador, esVos && styles.cuidadorVos]}>
-            {foto ? (
-              <Avatar foto={foto} nombre={nombre} size={AVATAR} borderColor={colors.white} />
-            ) : (
-              <View style={[styles.iconoCuidador, { backgroundColor: tipo.fondo }]}>
-                <MaterialIcons name={tipo.icon} size={sizes.iconSm} color={tipo.texto} />
-              </View>
-            )}
+            {/* Sin foto, Avatar muestra la inicial. */}
+            <Avatar foto={foto} nombre={nombre} size={AVATAR} borderColor={colors.white} />
             <View style={styles.cuidadorTexto}>
               <Text style={styles.cuidadorNombre} numberOfLines={1}>
                 {nombre}
                 {esVos && <Text style={styles.vos}> · Vos</Text>}
-              </Text>
-              <Text style={styles.cuidadorDetalle} numberOfLines={1}>
-                {cuidador.detalle}
               </Text>
             </View>
             <View style={[styles.rol, { backgroundColor: rol.fondo }]}>
@@ -216,13 +199,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surfaceContainerLow,
   },
-  iconoCuidador: {
-    width: AVATAR,
-    height: AVATAR,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   cuidadorTexto: {
     flex: 1,
   },
@@ -230,12 +206,6 @@ const styles = StyleSheet.create({
     ...typography.bodySm,
     fontFamily: typography.headlineLg.fontFamily,
     color: colors.onSurface,
-  },
-  cuidadorDetalle: {
-    ...typography.bodySm,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.onSurfaceVariant,
   },
   rol: {
     paddingHorizontal: spacing.sm,

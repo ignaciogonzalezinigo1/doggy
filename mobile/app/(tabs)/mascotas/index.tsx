@@ -3,19 +3,22 @@
  *
  * Lista las mascotas del usuario que vienen del contexto global. Tocar una
  * card abre su perfil, mantenerla presionada abre un menú de acciones
- * rápidas (ver `PetCard`) y el FAB mostaza lleva al alta de una mascota nueva.
+ * rápidas (ver `PetCard`; un dueño también puede eliminarla desde ahí, con el
+ * doble chequeo de `EliminarMascota`) y el FAB mostaza lleva al alta de una
+ * mascota nueva.
  * Arriba de la lista, un aviso por cada mascota que alguien encontró
  * (`AvisoEncontrada`): "¡Encontraron a …!" si estaba perdida, o "Alguien
  * encontró a … ¿Se perdió …?" si no. Aparece al cargar o refrescar los datos.
  */
 import { router } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Cargando, EstadoVacio } from '@/components/EstadoVista';
 import { Fab } from '@/components/Fab';
 import { AvisoEncontrada } from '@/components/mascotas/AvisoEncontrada';
+import { EliminarMascota } from '@/components/mascotas/EliminarMascota';
 import { PetCard } from '@/components/PetCard';
 import { useApp } from '@/context/AppContext';
 import { useMenuMascota } from '@/hooks/useMenuMascota';
@@ -29,9 +32,11 @@ import { avisoDeMascota, type AvisoMascota } from '@/utils/selectores';
  * @returns la pantalla con el header, la lista y el FAB
  */
 export default function MisMascotasScreen() {
-  const { mascotas, reportes, cargando, error, recargar } = useApp();
+  const { mascotas, reportes, cuidadores, usuario, cargando, error, recargar } = useApp();
+  /** Mascota cuya confirmación de borrado está abierta (desde el menú del long press). */
+  const [aEliminar, setAEliminar] = useState<Mascota | null>(null);
   // El menú vive acá y no en cada card, así las cards no leen el contexto.
-  const { abrirMenu } = useMenuMascota();
+  const { abrirMenu } = useMenuMascota(setAEliminar);
   const refresco = useRefresco();
 
   // --- Datos derivados ---
@@ -42,6 +47,12 @@ export default function MisMascotasScreen() {
         .map((m) => avisoDeMascota(reportes, m.id))
         .filter((a): a is AvisoMascota => a !== undefined),
     [mascotas, reportes],
+  );
+
+  /** Las demás personas asignadas a la mascota a eliminar: pierden el acceso. */
+  const otrosAEliminar = useMemo(
+    () => (aEliminar ? cuidadores.filter((c) => c.mascotaId === aEliminar.id && c.usuarioId !== usuario?.id) : []),
+    [aEliminar, cuidadores, usuario],
   );
 
   // --- Handlers ---
@@ -98,6 +109,15 @@ export default function MisMascotasScreen() {
         showsVerticalScrollIndicator={false}
       />
       <Fab icon="add" onPress={agregarMascota} accessibilityLabel="Agregar mascota" />
+      {aEliminar && (
+        <EliminarMascota
+          visible
+          mascota={aEliminar}
+          otros={otrosAEliminar}
+          onClose={() => setAEliminar(null)}
+          onEliminada={() => setAEliminar(null)}
+        />
+      )}
     </View>
   );
 }

@@ -3,9 +3,12 @@
  * presionada su card en "Mis Mascotas".
  *
  * Opciones: Editar y Reportar pérdida (o "Ya apareció", "Ya volvió a casa" si alguien la encontró, si tiene un
- * reporte activo). Son las mismas acciones que tiene el perfil de la
- * mascota, que sigue siendo la forma tocable de llegar a ellas. El QR se
- * descarga y se comparte solo desde el perfil (`QrIdentificacion`).
+ * reporte activo) y, solo si el usuario es dueño, "Eliminar mascota", que
+ * abre el mismo doble chequeo del perfil (`EliminarMascota`: hay que escribir
+ * el nombre para borrarla, nunca se borra al instante). Son las mismas
+ * acciones que tiene el perfil de la mascota, que sigue siendo la forma
+ * tocable de llegar a ellas. El QR se descarga y se comparte solo desde el
+ * perfil (`QrIdentificacion`).
  *
  * En iOS se muestra con `ActionSheetIOS`, y en Android con un Alert con
  * botones, como en `useFototeca`. El Alert de Android admite como mucho tres
@@ -24,6 +27,8 @@ import { useCerrarReporte } from './useCerrarReporte';
 type Opcion = {
   texto: string;
   accion: () => void;
+  /** Se muestra en rojo (acción que borra). */
+  destructiva?: boolean;
 };
 
 type UseMenuMascota = {
@@ -38,8 +43,14 @@ type UseMenuMascota = {
  * Menú de acciones rápidas de una mascota.
  * @returns la función para abrir el menú
  */
-export function useMenuMascota(): UseMenuMascota {
-  const { reportes } = useApp();
+/**
+ * Menú de acciones rápidas de una mascota.
+ * @param onEliminar abre la confirmación para eliminar la mascota (la opción
+ *   aparece solo si el usuario es dueño)
+ * @returns `abrirMenu`
+ */
+export function useMenuMascota(onEliminar: (mascota: Mascota) => void): UseMenuMascota {
+  const { reportes, cuidadores, usuario } = useApp();
   const { pedirCierre } = useCerrarReporte();
 
   /**
@@ -51,7 +62,10 @@ export function useMenuMascota(): UseMenuMascota {
     (mascota: Mascota): Opcion[] => {
       const reporte = reporteActivo(reportes, mascota.id);
       const id = String(mascota.id);
-      return [
+      const esDueno = cuidadores.some(
+        (c) => c.mascotaId === mascota.id && c.usuarioId === usuario?.id && c.rol === 'dueno',
+      );
+      const opciones: Opcion[] = [
         {
           texto: 'Editar',
           accion: () => router.push({ pathname: '/mascotas/[id]/editar', params: { id } }),
@@ -64,8 +78,13 @@ export function useMenuMascota(): UseMenuMascota {
                 router.push({ pathname: '/mi-mascota-perdida', params: { mascotaId: id } }),
             },
       ];
+      // Tercera y última opción: el Alert de Android admite como mucho tres botones.
+      if (esDueno) {
+        opciones.push({ texto: 'Eliminar mascota', accion: () => onEliminar(mascota), destructiva: true });
+      }
+      return opciones;
     },
-    [reportes, pedirCierre],
+    [reportes, cuidadores, usuario, pedirCierre, onEliminar],
   );
 
   const abrirMenu = useCallback(
@@ -73,8 +92,14 @@ export function useMenuMascota(): UseMenuMascota {
       const opciones = armarOpciones(mascota);
       if (Platform.OS === 'ios') {
         const textos = [...opciones.map((o) => o.texto), 'Cancelar'];
+        const indiceDestructivo = opciones.findIndex((o) => o.destructiva);
         ActionSheetIOS.showActionSheetWithOptions(
-          { title: mascota.nombre, options: textos, cancelButtonIndex: textos.length - 1 },
+          {
+            title: mascota.nombre,
+            options: textos,
+            cancelButtonIndex: textos.length - 1,
+            destructiveButtonIndex: indiceDestructivo >= 0 ? indiceDestructivo : undefined,
+          },
           (indice) => opciones[indice]?.accion(),
         );
         return;
@@ -82,7 +107,7 @@ export function useMenuMascota(): UseMenuMascota {
       Alert.alert(
         mascota.nombre,
         undefined,
-        opciones.map((o) => ({ text: o.texto, onPress: o.accion })),
+        opciones.map((o) => ({ text: o.texto, onPress: o.accion, style: o.destructiva ? 'destructive' : 'default' })),
         { cancelable: true },
       );
     },

@@ -283,7 +283,7 @@ Sprint 2 suma cuatro gestos con `react-native-gesture-handler` 3 y `react-native
 | --- | --- | --- |
 | Pinch + pan con zoom + doble toque + arrastrar para cerrar | Visor de fotos (etiqueta de vacuna, foto de un reporte) | Botón X para cerrar |
 | Swipe a la izquierda | Cards de turnos y del carnet | Botón "Eliminar" del formulario de edición |
-| Long press (600 ms) | Cards de "Mis Mascotas" | Las mismas acciones en el perfil de la mascota |
+| Long press (600 ms) | Cards de "Mis Mascotas" (Editar, Reportar pérdida y, para un dueño, Eliminar) | Las mismas acciones en el perfil de la mascota |
 | Fling izquierda / derecha | Calendario de la Agenda | Flechas del encabezado |
 
 ### 1. Visor de foto con zoom y arrastre para cerrar — `react-native-gesture-handler` + `react-native-reanimated` + `expo-haptics`
@@ -331,7 +331,7 @@ Sprint 2 suma cuatro gestos con `react-native-gesture-handler` 3 y `react-native
 
 - **Dónde:** las cards de "Mis Mascotas". Implementado en `src/components/PetCard.tsx` y `src/hooks/useMenuMascota.ts`.
 - **Qué hace:**
-  - mantener presionada la card 600 ms abre un menú con **Editar**, **Reportar pérdida** (o **Ya apareció** si tiene un reporte activo, **Ya volvió a casa** si además alguien la encontró); el QR se descarga y se comparte solo desde el perfil;
+  - mantener presionada la card 600 ms abre un menú con **Editar**, **Reportar pérdida** (o **Ya apareció** si tiene un reporte activo, **Ya volvió a casa** si además alguien la encontró) y, solo para un dueño, **Eliminar mascota** (en rojo), que abre el mismo doble chequeo del perfil: hay que escribir el nombre, nunca se borra al instante; el QR se descarga y se comparte solo desde el perfil;
   - mientras el dedo está apoyado la card se achica un poco, y al activarse vibra con un impacto medio. Al soltar, vuelve a su tamaño;
   - un toque normal sigue abriendo el perfil.
   - Alternativa tocable: las tres acciones están en el perfil de la mascota. Con lector de pantalla, la card ofrece la acción "Más opciones".
@@ -429,7 +429,7 @@ Todos los formularios validan en local antes de guardar, con las reglas centrali
 - `agenda/TurnoCard`, `agenda/TurnoForm`: card de turno (con lápiz para editar) y formulario que sirve para agendar y para editar.
 - `MenuRow`: fila de menú con ícono, badge, flecha o un elemento propio (Switch).
 - `SectionTitle`: título de sección con ícono en círculo y badge.
-- `perfil/ContactoEmergencia`, `perfil/CuidadoresMascota`, `perfil/EditarPerfilForm`: piezas del perfil de usuario. `CuidadoresMascota` muestra el rol de cada persona y, según el rol del usuario, "Asignar" y "Quitar" en cada invitado (solo dueños) o "Dejar de cuidar a…" (solo invitados).
+- `perfil/ContactoEmergencia`, `perfil/CuidadoresMascota`, `perfil/EditarPerfilForm`: piezas del perfil de usuario. `CuidadoresMascota` muestra de cada persona solo la foto (o la inicial), el nombre y el rol (no hay detalle del vínculo, porque la app no tiene dónde cargarlo) y, según el rol del usuario, "Asignar" y "Quitar" en cada invitado (solo dueños) o "Dejar de cuidar a…" (solo invitados).
 - `ContactoDueno`: cómo contactar a otra persona por una mascota encontrada (quien la encontró a la familia en Perdidos, y la familia a quien la encontró en el aviso): solo "Escribirle por WhatsApp" (`BotonWhatsApp`), o un texto breve si no hay teléfono. Los mensajes salen de `src/utils/mensajes.ts` (`mensajeGracias`, `mensajeLaTengo`, sin ubicación).
 - `mascotas/EliminarMascota`: doble chequeo para borrar una mascota (hay que escribir su nombre).
 - `perfil/InvitarForm`: elige el rol (Dueño / Invitado), genera el código de asignación y lo comparte.
