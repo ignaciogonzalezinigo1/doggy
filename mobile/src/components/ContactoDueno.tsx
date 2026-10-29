@@ -5,9 +5,9 @@
  * quien la encontró (`AvisoEncontrada`).
  *
  * El único medio es WhatsApp, con el mensaje ya escrito (`BotonWhatsApp`):
- * no se ofrece llamar. Si no hay teléfono o es un fijo (a un fijo no se le
- * puede escribir por WhatsApp), en lugar del botón va un texto breve que lo
- * explica.
+ * no se ofrece llamar. Todo teléfono se guarda como celular (asumimos que
+ * quien usa la app tiene WhatsApp); si la persona no cargó teléfono, en lugar
+ * del botón va un texto breve que lo explica.
  *
  * Quien lo usa decide si mostrarlo, con el `contacto` que manda el servidor:
  * a la familia solo le escribe quien publicó un encontrado vinculado a la
@@ -17,7 +17,6 @@ import { StyleSheet, Text } from 'react-native';
 
 import { colors, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
-import { esCelular } from '@/utils/telefonos';
 import { BotonWhatsApp } from './BotonWhatsApp';
 
 type Props = {
@@ -28,18 +27,14 @@ type Props = {
 };
 
 /**
- * Botón de WhatsApp, o el texto que explica por qué no se puede escribir.
+ * Botón de WhatsApp, o el texto que avisa que no hay teléfono.
  * @param props ver `Props`
  * @returns el botón o el aviso
  */
 export function ContactoDueno({ contacto, armarMensaje }: Props) {
-  if (!contacto || !esCelular(contacto.telefono)) {
+  if (!contacto) {
     return (
-      <Text style={styles.sinWhatsApp}>
-        {contacto
-          ? `${contacto.nombre} no tiene un celular con WhatsApp cargado.`
-          : 'No cargó un celular con WhatsApp: no se le puede escribir desde Doggy.'}
-      </Text>
+      <Text style={styles.sinWhatsApp}>No cargó un celular con WhatsApp: no se le puede escribir desde Doggy.</Text>
     );
   }
   return (

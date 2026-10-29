@@ -6,8 +6,8 @@
  * Los teléfonos llegan del servidor ya en E.164 ("+5491145892310"). Igual se
  * leen con `interpretarTelefono` (la regla de `telefonos.ts`), así un celular
  * escrito de otra forma ("11 15 4589-2310", "+54 9 11 4589-2310") también arma
- * bien el link. Solo se usa con celulares (`esCelular`), así que pasarlo a la
- * versión celular no cambia ningún número.
+ * bien el link. Todo número se guarda como celular, así que pasarlo a la
+ * versión celular no cambia ningún número guardado.
  */
 import { interpretarTelefono } from './telefonos';
 

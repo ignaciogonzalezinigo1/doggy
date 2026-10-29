@@ -5,7 +5,7 @@
  * `Linking.openURL`. El mensaje se arma recién al tocar, con los datos
  * de ese momento. Si WhatsApp no se puede abrir, avisa.
  *
- * Mostrarlo solo para celulares (`esCelular`): a un fijo no se le puede escribir.
+ * Todo teléfono de Doggy se guarda como celular, así que sirve con cualquiera.
  * Con `principal` es el botón lleno (el único medio de contacto, ver
  * `ContactoDueno`); si no, va con borde.
  */
