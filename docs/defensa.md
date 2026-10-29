@@ -223,7 +223,11 @@ Porque la IP de la PC cambia. La app arma la URL al mostrarla: `API_URL + foto`.
 → `mobile/src/data/fotos.ts` (`fuenteFoto`)
 
 **¿Por qué `/uploads` es público?**
-Porque el componente `Image` carga la foto sin headers, así que no puede mandar el token. Los nombres son aleatorios (32 caracteres hex): no se pueden adivinar.
+Porque el componente `Image` carga la foto sin headers, así que no puede mandar el token. Los nombres de las fotos subidas son aleatorios (32 caracteres hex): no se pueden adivinar. Las de la demo (`seed-luna.jpg`) sí, pero son fotos de Unsplash.
+
+**¿Dónde están las fotos de la demo y por qué?**
+Están versionadas en `doggy-backend/prisma/fotos-seed/` y el seed las copia a `uploads/` (que no se versiona). Así todas las fotos salen del servidor y los dos tenemos la misma demo con `git pull` + `npm run db:reset`.
+→ `doggy-backend/prisma/seed.ts` (`copiarFotosSeed`)
 → `doggy-backend/src/index.ts` (`express.static`)
 
 **¿Qué tuvieron que resolver para subir archivos en SDK 58?**

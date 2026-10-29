@@ -116,7 +116,7 @@ El seed de `doggy-backend` carga los datos de la demo. **Todos los usuarios tien
 
 El seed la imprime al terminar. Para que WhatsApp abra un celular real en la demo, completá `TELEFONO_DEMO_SOFIA` en el `.env` de `doggy-backend` (formato 5491…, sin + ni espacios, por ejemplo `5491123456789`) antes del `npm run db:reset`; si queda vacía, Sofía tiene un número inventado. El guion de la demo en vivo está en `docs/defensa.md`. También se puede crear una cuenta nueva desde "Registrarme". Para volver a la demo limpia: `npm run db:reset` en `doggy-backend` (borra los datos locales).
 
-Las fotos de la demo son de Unsplash (Licencia de Unsplash); el autor y el link de cada una están en [CREDITOS.md](CREDITOS.md).
+Las fotos de la demo son de Unsplash (Licencia de Unsplash). Están versionadas en `doggy-backend/prisma/fotos-seed/` y el seed las copia a `uploads/` del servidor (que no se versiona), así todas las fotos salen del servidor y la app no trae imágenes de datos. El autor y el link de cada una están en el `CREDITOS.md` de `doggy-backend`.
 
 ## Arquitectura
 
@@ -160,7 +160,7 @@ Sofía abre el perfil de Luna, toca "Reportar pérdida", marca en el mini mapa d
 **Ida (celular → base)**
 
 1. **Pantalla — `mobile/app/mi-mascota-perdida.tsx`, `handlePublicar`.** Valida en local la información adicional (`validarTexto`) y arma un `NuevoReporte` con los datos del perfil de Luna (nombre, raza, señas y foto), el punto del mapa (`lat`, `lng`), la zona que dio `reverseGeocodeAsync` y el radio, con `estado: 'perdido'` y la fecha de ahora. Pone `enviando` en `true` (el botón muestra el spinner y no se puede tocar dos veces) y llama a `crearReporte` del contexto.
-2. **Estado global — `mobile/src/context/AppContext.tsx`, `crearReporte`.** Pasa los datos por `conFotoSubida(datos, 'foto')` (`src/services/fotos.ts`). La foto de Luna ya es una ruta del servidor o una clave del seed, así que no sube nada; si fuera una URI local del celular, primero haría `POST /api/fotos` y reemplazaría la URI por la ruta `/uploads/...` que devuelve el servidor. Después llama al service.
+2. **Estado global — `mobile/src/context/AppContext.tsx`, `crearReporte`.** Pasa los datos por `conFotoSubida(datos, 'foto')` (`src/services/fotos.ts`). La foto de Luna ya es una ruta del servidor (`/uploads/seed-luna.jpg`), así que no sube nada; si fuera una URI local del celular, primero haría `POST /api/fotos` y reemplazaría la URI por la ruta `/uploads/...` que devuelve el servidor. Después llama al service.
 3. **Service — `mobile/src/services/reportes.ts`, `crearReporte`.** Llama a `pedirJson('/api/reportes', conCuerpo('POST', datos))`.
 4. **HTTP — `mobile/src/services/http.ts`, `pedir`.** `conCuerpo` hace el `JSON.stringify`; `armarHeaders` suma `Content-Type: application/json` y `Authorization: Bearer <token>` (el token está en memoria, leído de `expo-secure-store` al abrir la app). El `fetch` va a `http://192.168.0.10:3000/api/reportes` con un tope de 10 s.
 5. **Express — `doggy-backend/src/index.ts`.** `cors()` deja pasar el pedido y `express.json()` convierte el body en `req.body`. Como la ruta está bajo `/api`, pasa por **`requiereUsuario`** (`src/middlewares/requiereUsuario.ts`): saca el token del header, calcula su SHA-256 y busca la fila en `Sesion` (`usuarioDeToken`, `src/lib/sesiones.ts`). Si no existe o venció, 401. Si está bien, pone `req.usuarioId` y sigue al `reportesRouter`.
@@ -447,7 +447,7 @@ doggy/
 └── mobile/                  app Expo
     ├── app.json
     ├── .env.example         EXPO_PUBLIC_API_URL (copiar como .env)
-    ├── assets/images/       logo, ícono, splash y fotos del seed
+    ├── assets/images/       logo, ícono y splash (las fotos de la demo están en el backend)
     ├── app/                 rutas (Expo Router)
     │   ├── _layout.tsx      Stack raíz, fuentes, splash y raíz de gestos
     │   ├── index.tsx        entra a las tabs o al login según haya sesión
