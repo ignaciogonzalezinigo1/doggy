@@ -10,6 +10,11 @@
  * - cámara (o una imagen de la galería): leer el QR de la chapita,
  * - GPS: precargar en el mini mapa el punto donde está ahora.
  *
+ * También se llega con el código ya leído (`codigo` en los params) desde el
+ * link de la chapita, escaneada con la cámara del celular fuera de la app
+ * (`app/encontre/[codigo].tsx`): se saltea el escáner y se busca sola. Si falla,
+ * lo explica y deja reintentar o escanear.
+ *
  * Apenas se lee un QR válido se cierra la cámara y aparece la tarjeta de la
  * mascota, de solo lectura: foto del perfil, nombre, edad, raza y el nombre de
  * su familia. Quien la encontró no saca foto ni escribe nombre, raza ni
@@ -23,7 +28,7 @@
  */
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -39,18 +44,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { ContactoDueno } from '@/components/ContactoDueno';
+import { Cargando, EstadoVacio } from '@/components/EstadoVista';
 import { Input } from '@/components/Input';
 import { PermissionNotice } from '@/components/PermissionNotice';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { EscanerQr, ResultadoLectura } from '@/components/reporte/EscanerQr';
+import { EscanerQr, ResultadoLectura, TITULO_FALLA } from '@/components/reporte/EscanerQr';
 import { MapaSelector } from '@/components/reporte/MapaSelector';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useApp } from '@/context/AppContext';
 import { Coordenadas, DireccionLegible, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
+import { borrarChapitaPendiente } from '@/services/chapitaPendiente';
 import { ErrorApi } from '@/services/http';
 import type { MascotaPublica, ReportePerdida } from '@/types/models';
-import { CODIGO_MASCOTA_REGEX } from '@/utils/codigos';
+import { extraerCodigoMascota } from '@/utils/codigos';
 import { textoEdad } from '@/utils/etiquetas';
 import { CENTRO_CABA } from '@/utils/mapa';
 import { encontradoPropio, reporteActivo } from '@/utils/selectores';
@@ -62,12 +69,25 @@ const MENSAJE_YA_AVISASTE = 'Ya avisaste que encontraste a esta mascota.';
 /** Aviso si la mascota es del usuario (el mismo texto que el 403 del servidor). */
 const MENSAJE_ES_TUYA = 'Esta mascota está en tu cuenta: no hace falta avisar que la encontraste.';
 
+/** Lectura que no identificó a ninguna mascota. */
+type LecturaFallida = Extract<ResultadoLectura, { ok: false }>;
+
 /**
  * Pantalla del reporte de mascota encontrada.
  * @returns el escáner o, con una mascota identificada, su tarjeta y el mapa
  */
 export default function ReportarScreen() {
-  const { reportes, mascotas, usuario, buscarMascotaPorCodigo, avisarEncontrado } = useApp();
+  /** Código del link de la chapita, si se llegó por ahí. */
+  const { codigo: codigoLink } = useLocalSearchParams<{ codigo?: string }>();
+  const {
+    reportes,
+    mascotas,
+    usuario,
+    error: errorCarga,
+    recargar,
+    buscarMascotaPorCodigo,
+    avisarEncontrado,
+  } = useApp();
   const gps = useUbicacion({ automatico: true });
   const insets = useSafeAreaInsets();
 
@@ -82,6 +102,10 @@ export default function ReportarScreen() {
   const [enviando, setEnviando] = useState(false);
   /** true después de "Escanear otra": el escáner vuelve a abrir la cámara solo. */
   const [reabrirCamara, setReabrirCamara] = useState(false);
+  /** true mientras se busca la mascota del link. */
+  const [buscandoLink, setBuscandoLink] = useState(!!codigoLink);
+  /** Por qué no se pudo abrir el link, si falló. */
+  const [linkFallido, setLinkFallido] = useState<LecturaFallida | null>(null);
   // Si el usuario movió el pin, la posición del GPS ya no lo pisa.
   const pinAjustado = useRef(false);
 
@@ -108,6 +132,76 @@ export default function ReportarScreen() {
   }, []);
 
   /**
+   * Busca en el servidor la mascota del texto de un QR (no en `mascotas`, que
+   * son solo las del usuario). Valida antes el formato y no toca el estado.
+   * @param texto el código solo o el link de la chapita
+   * @returns la mascota o, si no se pudo, por qué
+   */
+  const buscar = useCallback(
+    async (texto: string): Promise<{ ok: true; mascota: MascotaPublica } | LecturaFallida> => {
+      const codigo = extraerCodigoMascota(texto);
+      if (!codigo) {
+        return { ok: false, motivo: 'no-reconocido', mensaje: 'Ese QR no es de una chapita Doggy.' };
+      }
+      try {
+        const mascota = await buscarMascotaPorCodigo(codigo);
+        if (mascota) return { ok: true, mascota };
+        return {
+          ok: false,
+          motivo: 'no-reconocido',
+          mensaje: `No encontramos ninguna mascota registrada con el código ${codigo}.`,
+        };
+      } catch (e) {
+        // Si el servidor respondió, es un error suyo; si no, no hubo conexión.
+        const mensaje = e instanceof Error ? e.message : 'Intentá de nuevo.';
+        return { ok: false, motivo: e instanceof ErrorApi ? 'error' : 'sin-conexion', mensaje };
+      }
+    },
+    [buscarMascotaPorCodigo],
+  );
+
+  // --- Link de la chapita ---
+  /**
+   * Busca la mascota del link. Cuando ya se sabe si existe, el código deja de
+   * estar pendiente; si falló la conexión (o venció la sesión) sigue guardado.
+   * @param codigo código que llegó en el link
+   * @returns la mascota o por qué no se pudo
+   */
+  const buscarDelLink = useCallback(
+    async (codigo: string) => {
+      const resultado = await buscar(codigo);
+      if (resultado.ok || resultado.motivo === 'no-reconocido') await borrarChapitaPendiente();
+      return resultado;
+    },
+    [buscar],
+  );
+
+  /**
+   * Muestra lo que dio la búsqueda del link: la tarjeta o el error.
+   * @param resultado lo que devolvió `buscarDelLink`
+   */
+  const aplicarLink = useCallback(
+    (resultado: Awaited<ReturnType<typeof buscarDelLink>>) => {
+      setBuscandoLink(false);
+      if (resultado.ok) identificar(resultado.mascota);
+      else setLinkFallido(resultado);
+    },
+    [identificar],
+  );
+
+  // Si se llegó por el link, se busca la mascota apenas se abre el modal.
+  useEffect(() => {
+    if (!codigoLink) return;
+    let vigente = true;
+    buscarDelLink(codigoLink).then((resultado) => {
+      if (vigente) aplicarLink(resultado);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [codigoLink, buscarDelLink, aplicarLink]);
+
+  /**
    * Mensaje de WhatsApp para la familia, si el usuario ya avisó que la
    * encontró (`mensajeLaTengo`). Va sin ubicación.
    * @param encontrado el encontrado que publicó el usuario
@@ -116,8 +210,9 @@ export default function ReportarScreen() {
   const mensajeHallazgo = (encontrado: ReportePerdida): string =>
     mensajeLaTengo({ para: encontrado.contacto?.nombre, yo: usuario?.nombre, mascota: encontrado.nombre });
 
-  /** Descarta la mascota identificada y vuelve a la cámara. */
+  /** Descarta la mascota identificada (o el link que falló) y vuelve a la cámara. */
   const escanearOtra = () => {
+    setLinkFallido(null);
     setIdentificada(null);
     setComentario('');
     setErrorComentario(undefined);
@@ -144,32 +239,25 @@ export default function ReportarScreen() {
 
   // --- Handlers ---
   /**
-   * Procesa el texto leído del QR: valida el formato y busca la mascota en el
-   * servidor (no en `mascotas`, que son solo las del usuario).
-   * @param codigo texto del QR
+   * Procesa el texto leído por el escáner y, si es de una mascota, la muestra.
+   * @param texto texto del QR (el código solo o el link)
    * @returns si se pudo identificar a la mascota y, si no, por qué
    */
-  const handleLectura = async (codigo: string): Promise<ResultadoLectura> => {
-    const normalizado = codigo.trim().toUpperCase();
-    if (!CODIGO_MASCOTA_REGEX.test(normalizado)) {
-      return { ok: false, motivo: 'no-reconocido', mensaje: 'Ese QR no es de una chapita Doggy.' };
-    }
-    try {
-      const mascota = await buscarMascotaPorCodigo(normalizado);
-      if (!mascota) {
-        return {
-          ok: false,
-          motivo: 'no-reconocido',
-          mensaje: `No encontramos ninguna mascota registrada con el código ${normalizado}.`,
-        };
-      }
-      identificar(mascota);
-      return { ok: true };
-    } catch (e) {
-      // Si el servidor respondió, es un error suyo; si no, no hubo conexión.
-      const mensaje = e instanceof Error ? e.message : 'Intentá de nuevo.';
-      return { ok: false, motivo: e instanceof ErrorApi ? 'error' : 'sin-conexion', mensaje };
-    }
+  const handleLectura = async (texto: string): Promise<ResultadoLectura> => {
+    const resultado = await buscar(texto);
+    if (!resultado.ok) return resultado;
+    identificar(resultado.mascota);
+    return { ok: true };
+  };
+
+  /** Vuelve a buscar la mascota del link (y, si habían fallado, los datos del usuario). */
+  const reintentarLink = async () => {
+    if (!codigoLink) return;
+    setLinkFallido(null);
+    setBuscandoLink(true);
+    // Sin sus mascotas cargadas no se puede avisar antes que la escaneada es suya.
+    if (errorCarga) await recargar();
+    aplicarLink(await buscarDelLink(codigoLink));
   };
 
   /**
@@ -238,7 +326,29 @@ export default function ReportarScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {!identificada ? (
+          {buscandoLink ? (
+            <Cargando mensaje="Buscando…" />
+          ) : linkFallido ? (
+            <>
+              <EstadoVacio
+                icon={linkFallido.motivo === 'sin-conexion' ? 'cloud-off' : 'error-outline'}
+                titulo={TITULO_FALLA[linkFallido.motivo]}
+                mensaje={linkFallido.mensaje}
+                accion={
+                  linkFallido.motivo === 'no-reconocido'
+                    ? undefined
+                    : { titulo: 'Reintentar', onPress: reintentarLink }
+                }
+              />
+              <PrimaryButton
+                title="Escanear la chapita"
+                icon="qr-code-scanner"
+                iconLeft
+                variant="outline"
+                onPress={escanearOtra}
+              />
+            </>
+          ) : !identificada ? (
             <>
               <View style={styles.intro}>
                 <Text style={styles.titulo}>Escaneá su chapita</Text>

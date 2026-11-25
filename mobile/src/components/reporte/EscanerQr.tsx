@@ -44,8 +44,8 @@ type Props = {
   abrirAlMontar?: boolean;
 };
 
-/** Título del aviso según por qué falló la lectura. */
-const TITULO_FALLA: Record<Extract<ResultadoLectura, { ok: false }>['motivo'], string> = {
+/** Título del aviso según por qué falló la lectura (también la de un link). */
+export const TITULO_FALLA: Record<Extract<ResultadoLectura, { ok: false }>['motivo'], string> = {
   'no-reconocido': 'Código no reconocido',
   'sin-conexion': 'Sin conexión',
   error: 'No pudimos buscar la mascota',

@@ -120,6 +120,21 @@ Porque no se puede deshacer y se lleva datos de otras personas (los invitados pi
 **¿Cómo identifica el escáner a un perro ajeno si solo ves tus mascotas?**
 Con `GET /api/mascotas/codigo/:codigo`, la única lectura de una mascota ajena. Devuelve solo los datos públicos (nombre, edad en meses, raza, señas, foto, código) y el nombre del tutor, sin carnet ni otros datos del dueño.
 
+**¿Cómo funciona el deeplink del QR de la chapita?**
+El QR lleva un link (`enlaceChapita`, con `Linking.createURL`) a la ruta `encontre/[codigo]`. Al escanearlo con la cámara, Expo Router abre esa ruta, que guarda el código y lleva a "Encontré una mascota" con el código ya leído: es el mismo flujo del escáner, sin duplicar la tarjeta ni la publicación. No hubo que tocar el backend.
+→ `mobile/app/encontre/[codigo].tsx`, `mobile/app/reportar.tsx`, `mobile/src/utils/enlaces.ts`
+
+**¿Y las chapitas que ya están impresas?**
+Las sigue leyendo el escáner de la app. `extraerCodigoMascota` acepta el código solo o el link y valida los dos con `CODIGO_MASCOTA_REGEX`. Para abrirse desde la cámara hace falta el QR nuevo.
+→ `mobile/src/utils/codigos.ts`
+
+**¿Qué pasa si quien escanea no tiene sesión?**
+El código se guarda con SecureStore (una hora) antes de mirar la sesión, así tampoco se pierde si el token estaba vencido o el sistema cierra la app. Después del login o el registro se abre la tarjeta.
+→ `mobile/src/services/chapitaPendiente.ts`, `mobile/src/hooks/useChapitaPendiente.ts`
+
+**¿Por qué en la demo el link es `exp://` y no `doggy://`?**
+Porque el scheme propio lo registra la app instalada, y Expo Go es otra app. `createURL` arma el que corresponde: `exp://<IP>:8081/--/encontre/…` en Expo Go y `doggy://encontre/…` en una build. El código es el mismo. Para quien no tiene la app harían falta links `https` (Universal Links y App Links), con dominio y build.
+
 **¿Cómo se genera la imagen del QR?**
 `QrIdentificacion` dibuja fuera de la pantalla una ficha (fondo blanco, nombre, QR grande y "Escaneame con Doggy") y `react-native-view-shot` la captura como PNG en un archivo temporal. "Compartir QR" manda ese archivo con `expo-sharing`; "Descargar QR" lo guarda en la galería con `expo-media-library`, pidiendo solo permiso de escritura de fotos, y si no puede ofrece la hoja de compartir ("Guardar imagen").
 → `doggy/mobile/src/components/QrIdentificacion.tsx`, `doggy/mobile/src/hooks/useQrImagen.ts`
@@ -354,7 +369,7 @@ Demo en vivo:
 
 1. **Sofía**, Mis Mascotas: "Alguien encontró a Milo. ¿Se perdió Milo?" (Julián escaneó su chapita), con la foto, dónde y cuándo, el comentario y "Escribirle por WhatsApp" a Julián. Tocar "No, está conmigo": el aviso se cierra ("No se había perdido").
 2. **Sofía**, Perdidos: Pipa, de Julián, en el mapa, y debajo del título "A menos de 10 km de tu ubicación". Después, "Se perdió mi mascota" → Luna → marcar dónde se la vio y el radio → publicar: Luna aparece en mostaza.
-3. **Lucía**, "Encontré una mascota": arranca en el escáner. Escanear el QR de Luna desde el perfil de Luna en el celular de Sofía. Tarjeta de solo lectura (foto, nombre, raza, "Su familia: Sofía"), marcar dónde está, un comentario y "Avisarle a su familia". En Perdidos, Luna pasa a un pin verde de "¡Reencuentro!" y su card ofrece "Escribirle por WhatsApp" a Sofía, que abre el chat con el mensaje armado.
+3. **Lucía**, deeplink: cerrar Doggy y escanear con la cámara del celular el QR del perfil de Luna en el celular de Sofía. Se abre Doggy directo en la tarjeta (para mostrar que el link no se pierde, hacerlo con la sesión cerrada e ingresar recién ahí). Los dos celulares y la PC en la misma red; si la cámara no abre el link, usar el escáner de Expo Go o, dentro de Doggy, "Encontré una mascota", que lee el mismo QR. Tarjeta de solo lectura (foto, nombre, raza, "Su familia: Sofía"), marcar dónde está, un comentario y "Avisarle a su familia". En Perdidos, Luna pasa a un pin verde de "¡Reencuentro!" y su card ofrece "Escribirle por WhatsApp" a Sofía, que abre el chat con el mensaje armado.
 4. **Sofía**, refrescar Mis Mascotas: "¡Encontraron a Luna!" con el comentario de Lucía y su WhatsApp. "Ya volvió a casa": se cierran el perdido y el encontrado ("Devuelta a su familia") y Luna sale del mapa.
 5. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada (lo ve y lo edita, pero no genera códigos). En Familia y Cuidadores, Julián aparece como paseador de Roco, con "Quitar".
 

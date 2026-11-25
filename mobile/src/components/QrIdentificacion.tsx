@@ -1,9 +1,11 @@
 /**
  * Card "Código QR de Identificación" del perfil de la mascota.
  *
- * Genera un QR real (react-native-qrcode-svg) con el ID único de la mascota.
- * Es el mismo código que se graba en la placa del collar: quien la encuentre
- * lo escanea y la app identifica a la mascota y a su tutor.
+ * Genera un QR real (react-native-qrcode-svg) con el link de la chapita
+ * (`enlaceChapita`), que lleva el ID único de la mascota. Es el mismo que se
+ * graba en la placa del collar: quien la encuentre lo escanea con la cámara
+ * del celular y se abre Doggy en la tarjeta de la mascota para avisarle a su
+ * familia. El escáner de la app también lo lee.
  *
  * Es el único lugar con acciones de QR: "Descargar QR" lo guarda en la galería
  * y "Compartir QR" comparte el archivo de imagen (ver `useQrImagen`). La
@@ -19,13 +21,14 @@ import QRCode from 'react-native-qrcode-svg';
 import { useQrImagen } from '@/hooks/useQrImagen';
 import { colors, radius, sizes, spacing, typography } from '@/theme';
 import type { Mascota } from '@/types/models';
+import { enlaceChapita } from '@/utils/enlaces';
 import { Badge } from './Badge';
 import { SectionCard } from './SectionCard';
 
 const logo = require('@/assets/images/logo.png');
 
-/** Lado del QR en puntos. */
-const QR_SIZE = 96;
+/** Lado del QR en puntos: con el link es denso, y más chico cuesta leerlo con la cámara. */
+const QR_SIZE = 160;
 /** Lado de la imagen para imprimir y del QR dentro de ella (en puntos; la captura sale en píxeles físicos). */
 const FICHA = 360;
 const QR_FICHA = 260;
@@ -58,7 +61,7 @@ export function QrIdentificacion({ mascota }: Props) {
         <View style={styles.cuerpo}>
           <View style={styles.qr} accessibilityLabel={`Código QR con el ID ${mascota.codigo}`}>
             <QRCode
-              value={mascota.codigo}
+              value={enlaceChapita(mascota.codigo)}
               size={QR_SIZE}
               color={colors.primary}
               backgroundColor={colors.white}
@@ -79,7 +82,7 @@ export function QrIdentificacion({ mascota }: Props) {
               </Text>
             </View>
             <Text style={styles.ayuda}>
-              Escaneá para ver ficha médica de emergencia y contacto del tutor.
+              {`Quien encuentre a ${mascota.nombre} lo escanea con la cámara del celular y se abre Doggy para avisarle a su familia.`}
             </Text>
             <View style={styles.acciones}>
               <Pressable
@@ -133,7 +136,7 @@ const FichaQr = forwardRef<ViewInstance, Props>(function FichaQr({ mascota }, re
         {mascota.nombre}
       </Text>
       <QRCode
-        value={mascota.codigo}
+        value={enlaceChapita(mascota.codigo)}
         size={QR_FICHA}
         color={colors.onBackground}
         backgroundColor={colors.white}

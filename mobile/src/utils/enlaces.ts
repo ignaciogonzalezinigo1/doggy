@@ -1,5 +1,7 @@
 /**
- * Link que abre la app para comunicarse: WhatsApp (wa.me). No se ofrece
+ * Links que arma la app: el del QR de la chapita y el de WhatsApp.
+ *
+ * WhatsApp (wa.me) es el link para comunicarse. No se ofrece
  * llamar: el único medio de contacto entre la familia y quien encontró a la
  * mascota es WhatsApp.
  *
@@ -9,7 +11,22 @@
  * bien el link. Todo número se guarda como celular, así que pasarlo a la
  * versión celular no cambia ningún número guardado.
  */
+import * as Linking from 'expo-linking';
+
+import { RUTA_CHAPITA } from './codigos';
 import { interpretarTelefono } from './telefonos';
+
+/**
+ * Link que lleva el QR de la chapita: abre Doggy en la tarjeta de la mascota.
+ * Es la única función que lo arma. `createURL` elige el scheme según dónde
+ * corre la app: `doggy://encontre/…` en una build y
+ * `exp://<IP>:8081/--/encontre/…` en Expo Go, que no registra schemes propios.
+ * @param codigo código DOGGY-XXXX-NOMBRE de la mascota
+ * @returns la URL para codificar en el QR
+ */
+export function enlaceChapita(codigo: string): string {
+  return Linking.createURL(`${RUTA_CHAPITA}/${codigo}`);
+}
 
 /**
  * Link de WhatsApp con un mensaje ya escrito: https://wa.me/<número sin +>?text=<texto>.

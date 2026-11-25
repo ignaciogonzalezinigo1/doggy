@@ -63,6 +63,7 @@ import { router } from 'expo-router';
 import type { Coordenadas } from '@/hooks/useUbicacion';
 import * as authService from '@/services/auth';
 import type { DatosRegistro, SesionAbierta } from '@/services/auth';
+import { borrarChapitaPendiente } from '@/services/chapitaPendiente';
 import * as cuidadoresService from '@/services/cuidadores';
 import { conFotoSubida } from '@/services/fotos';
 import * as mascotasService from '@/services/mascotas';
@@ -492,6 +493,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.warn('No se pudo cerrar la sesión en el servidor:', e);
     }
     await sesionService.borrarToken();
+    // Un link a medio abrir era de este usuario, no del que ingrese después.
+    await borrarChapitaPendiente();
     limpiarEstado();
   }, [limpiarEstado]);
 

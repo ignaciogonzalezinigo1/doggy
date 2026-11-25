@@ -5,16 +5,20 @@
  * formulario de email y contraseña con validación local (formato del email y
  * largo máximo de los dos campos). Con datos válidos hace el login contra la
  * API y entra a la tab Mascotas; si el servidor lo rechaza, muestra su mensaje.
+ * Si se llegó por el link de una chapita, lo avisa y entra a la tarjeta de esa
+ * mascota (`useChapitaPendiente`).
  */
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, type TextInputInstance, View } from 'react-native';
 
+import { AvisoChapita } from '@/components/AvisoChapita';
 import { Input } from '@/components/Input';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { useApp } from '@/context/AppContext';
+import { useChapitaPendiente } from '@/hooks/useChapitaPendiente';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import {
   LIMITES,
@@ -36,6 +40,7 @@ type Errores = {
  */
 export default function LoginScreen() {
   const { iniciarSesion } = useApp();
+  const { hayChapita, entrar } = useChapitaPendiente();
 
   // --- Estado ---
   const [email, setEmail] = useState('');
@@ -59,7 +64,7 @@ export default function LoginScreen() {
 
   /**
    * Valida el formulario, inicia la sesión (guarda el token y carga los datos)
-   * y entra a la app reemplazando el login en el historial.
+   * y entra a la app (o a la tarjeta de la chapita) reemplazando el login en el historial.
    */
   const handleIngresar = async () => {
     if (enviando) return;
@@ -73,7 +78,7 @@ export default function LoginScreen() {
     setEnviando(true);
     try {
       await iniciarSesion(normalizarEmail(email), password);
-      router.replace('/mascotas');
+      await entrar();
     } catch (e) {
       Alert.alert('No pudimos ingresar', e instanceof Error ? e.message : 'Intentá de nuevo.');
     } finally {
@@ -101,6 +106,8 @@ export default function LoginScreen() {
           Tu amigo confiable para el cuidado y seguridad de tu mascota.
         </Text>
       </View>
+
+      {hayChapita && <AvisoChapita />}
 
       <View style={styles.card}>
         <Input

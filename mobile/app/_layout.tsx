@@ -79,6 +79,8 @@ function Navegacion() {
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        {/* Entrada del link de la chapita: no dibuja nada, lleva a reportar o al login. */}
+        <Stack.Screen name="encontre/[codigo]" options={{ animation: 'none' }} />
         {/* Los reportes se abren desde abajo, por encima de las tabs. */}
         <Stack.Screen name="reportar" options={{ presentation: 'modal' }} />
         <Stack.Screen name="mi-mascota-perdida" options={{ presentation: 'modal' }} />

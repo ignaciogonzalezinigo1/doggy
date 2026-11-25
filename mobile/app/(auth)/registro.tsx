@@ -9,19 +9,22 @@
  * sin espacios, con al menos una letra y un número. Cada campo tiene su largo máximo. Con todo válido crea la cuenta
  * contra la API, deja la sesión abierta y entra a la tab Mascotas con un
  * saludo que invita a completar el perfil. Si el servidor la rechaza (por
- * ejemplo, el email ya tiene cuenta), muestra su mensaje.
+ * ejemplo, el email ya tiene cuenta), muestra su mensaje. Si se llegó por el
+ * link de una chapita, en vez del saludo se abre la tarjeta de esa mascota
+ * (`useChapitaPendiente`).
  */
-import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, type TextInputInstance, View } from 'react-native';
 
+import { AvisoChapita } from '@/components/AvisoChapita';
 import { BackButton } from '@/components/BackButton';
 import { Input } from '@/components/Input';
 import { InputTelefono } from '@/components/InputTelefono';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { useApp } from '@/context/AppContext';
+import { useChapitaPendiente } from '@/hooks/useChapitaPendiente';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { volver } from '@/utils/navegacion';
 import {
@@ -79,6 +82,7 @@ function validarFormulario(form: Formulario): Errores {
  */
 export default function RegistroScreen() {
   const { registrarse } = useApp();
+  const { hayChapita, entrar } = useChapitaPendiente();
 
   // --- Estado ---
   const [form, setForm] = useState<Formulario>(FORM_INICIAL);
@@ -120,7 +124,8 @@ export default function RegistroScreen() {
         telefonoEmergencia: limpiarTexto(form.telefonoEmergencia),
         password: form.password,
       });
-      router.replace('/mascotas');
+      // Si llegó por una chapita, la tarjeta se abre ya: el saludo quedaría encima.
+      if (await entrar()) return;
       Alert.alert(
         'Cuenta creada',
         `¡Bienvenido/a a Doggy, ${nombre}! Ya podés cargar tus mascotas. Completá tu ubicación desde Perfil.`,
@@ -154,6 +159,8 @@ export default function RegistroScreen() {
           </Text>
         </View>
       </View>
+
+      {hayChapita && <AvisoChapita />}
 
       <View style={styles.card}>
         <View style={styles.row}>
