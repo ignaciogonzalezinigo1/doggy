@@ -39,6 +39,13 @@
  * Al aplicar una carga, cada lista conserva los objetos que no cambiaron
  * (`conservarIguales`): si un refresco trae lo mismo, el estado no cambia y
  * nadie se vuelve a dibujar; si cambió un reporte, solo cambia ese.
+ *
+ * Reportes por zona: el servidor devuelve los reportes a hasta 10 km de un
+ * punto (más los del usuario y sus mascotas, aunque estén lejos). El punto
+ * es `centroReportes`: el centro de CABA hasta que Perdidos lee el GPS y
+ * llama a `buscarReportesCerca`; desde ahí la carga y los refrescos usan la
+ * ubicación del usuario. Una respuesta pedida con un centro que ya cambió no
+ * pisa los reportes (ver `aplicarReportes`). `zonaReportes` dice cuál se usó.
  */
 import {
   createContext,
@@ -53,6 +60,7 @@ import {
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 
+import type { Coordenadas } from '@/hooks/useUbicacion';
 import * as authService from '@/services/auth';
 import type { DatosRegistro, SesionAbierta } from '@/services/auth';
 import * as cuidadoresService from '@/services/cuidadores';
@@ -82,9 +90,16 @@ import type {
   Turno,
   Usuario,
 } from '@/types/models';
+import { CENTRO_CABA } from '@/utils/mapa';
 
 /**
- * Estado de la sesión: `restaurando` mientras se lee el token guardado al
+ * Alrededor de qué punto se pidieron los reportes que hay en el estado: la
+ * ubicación del usuario o, mientras no se tenga (o sin permiso), el centro de CABA.
+ */
+export type ZonaReportes = 'tu-ubicacion' | 'caba';
+
+/**
+ * Estado de la sesión:`restaurando` mientras se lee el token guardado al
  * abrir la app (se ve la splash), `abierta` con un usuario logueado y
  * `cerrada` cuando hay que pasar por el login.
  */
@@ -100,6 +115,8 @@ type AppDatos = {
   registros: RegistroSanitario[];
   turnos: Turno[];
   reportes: ReportePerdida[];
+  /** Alrededor de qué punto están los reportes (a hasta 10 km, salvo los propios). */
+  zonaReportes: ZonaReportes;
   cuidadores: Cuidador[];
   /** true mientras se cargan los datos de la sesión. */
   cargando: boolean;
@@ -112,6 +129,12 @@ type AppAcciones = {
   recargar: () => Promise<void>;
   /** Vuelve a pedir todo sin ocultar los datos; si falla, avisa y deja los que había. */
   refrescar: () => Promise<void>;
+  /**
+   * Trae los reportes a hasta 10 km de la ubicación del usuario (y los suyos)
+   * y deja esa ubicación para los refrescos. Si falla, lanza el error y quedan
+   * los reportes que había.
+   */
+  buscarReportesCerca: (centro: Coordenadas) => Promise<void>;
   iniciarSesion: (email: string, password: string) => Promise<void>;
   /** Crea la cuenta y deja la sesión abierta con ella. */
   registrarse: (datos: DatosRegistro) => Promise<void>;
@@ -172,15 +195,16 @@ function mensajeDeError(error: unknown): string {
 /**
  * Pide todos los datos iniciales en paralelo (evita pedir uno detrás de otro).
  * No toca el estado: solo devuelve lo que respondieron los services.
+ * @param centro punto alrededor del cual se piden los reportes
  * @returns usuario, mascotas, registros, turnos, reportes y cuidadores, en ese orden
  */
-function pedirTodo() {
+function pedirTodo(centro: Coordenadas) {
   return Promise.all([
     usuarioService.obtenerUsuario(),
     mascotasService.obtenerMascotas(),
     registrosService.obtenerRegistros(),
     turnosService.obtenerTurnos(),
-    reportesService.obtenerReportes(),
+    reportesService.obtenerReportes(centro),
     cuidadoresService.obtenerCuidadores(),
   ]);
 }
@@ -221,11 +245,12 @@ type DatosIniciales = Awaited<ReturnType<typeof pedirTodo>>;
 /**
  * Lee el token guardado y, si hay, pide los datos de esa sesión. No toca el
  * estado. Si el token venció, el 401 lo maneja `http.ts` (vuelve al login).
+ * @param centro punto alrededor del cual se piden los reportes
  * @returns los datos, o null si no había sesión guardada
  */
-async function restaurarSesion(): Promise<DatosIniciales | null> {
+async function restaurarSesion(centro: Coordenadas): Promise<DatosIniciales | null> {
   const token = await sesionService.cargarToken();
-  return token ? pedirTodo() : null;
+  return token ? pedirTodo(centro) : null;
 }
 
 /**
@@ -250,6 +275,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [registros, setRegistros] = useState<RegistroSanitario[]>([]);
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [reportes, setReportes] = useState<ReportePerdida[]>([]);
+  const [zonaReportes, setZonaReportes] = useState<ZonaReportes>('caba');
   const [cuidadores, setCuidadores] = useState<Cuidador[]>([]);
   const [cargando, setCargando] = useState(false);
   const [refrescando, setRefrescando] = useState(false);
@@ -262,26 +288,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const sesionActual = useRef(0);
   /** Refresco en curso, para no lanzar otro igual mientras tanto. */
   const refrescoEnCurso = useRef<Promise<void> | null>(null);
+  /**
+   * Punto alrededor del cual se piden los reportes: el centro de CABA hasta
+   * que Perdidos tiene la ubicación del usuario (`buscarReportesCerca`).
+   */
+  const centroReportes = useRef<Coordenadas>(CENTRO_CABA);
 
   // --- Carga de datos ---
+  /**
+   * Guarda los reportes que se pidieron alrededor de un punto, si ese punto
+   * sigue siendo el actual: si mientras tanto se buscó en otro lugar, esta
+   * respuesta es vieja y no pisa a la nueva.
+   * @param lista reportes que respondió el servidor
+   * @param centro punto con el que se pidieron
+   */
+  const aplicarReportes = useCallback((lista: ReportePerdida[], centro: Coordenadas) => {
+    if (centro !== centroReportes.current) return;
+    setReportes((prev) => conservarIguales(prev, lista));
+    setZonaReportes(centro === CENTRO_CABA ? 'caba' : 'tu-ubicacion');
+  }, []);
+
   /**
    * Guarda en el estado los datos que trajo `pedirTodo`, conservando lo que
    * no cambió (ver `conservarIguales`).
    * @param datos usuario, mascotas, registros, turnos, reportes y cuidadores
+   * @param centro punto con el que se pidieron los reportes
    */
-  const aplicarDatos = useCallback(([u, m, r, t, rep, c]: DatosIniciales) => {
-    setUsuario((prev) => mismoSiIgual(prev, u));
-    setMascotas((prev) => conservarIguales(prev, m));
-    setRegistros((prev) => conservarIguales(prev, r));
-    setTurnos((prev) => conservarIguales(prev, t));
-    setReportes((prev) => conservarIguales(prev, rep));
-    setCuidadores((prev) => conservarIguales(prev, c));
-  }, []);
+  const aplicarDatos = useCallback(
+    ([u, m, r, t, rep, c]: DatosIniciales, centro: Coordenadas) => {
+      setUsuario((prev) => mismoSiIgual(prev, u));
+      setMascotas((prev) => conservarIguales(prev, m));
+      setRegistros((prev) => conservarIguales(prev, r));
+      setTurnos((prev) => conservarIguales(prev, t));
+      aplicarReportes(rep, centro);
+      setCuidadores((prev) => conservarIguales(prev, c));
+    },
+    [aplicarReportes],
+  );
 
   /** Vacía todos los datos y deja la sesión cerrada (logout o sesión vencida). */
   const limpiarEstado = useCallback(() => {
     sesionActual.current += 1;
     refrescoEnCurso.current = null;
+    // El próximo usuario arranca en CABA hasta que Perdidos vuelva a leer el GPS.
+    centroReportes.current = CENTRO_CABA;
+    setZonaReportes('caba');
     setSesion('cerrada');
     setUsuario(null);
     setMascotas([]);
@@ -302,8 +353,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCargando(true);
     setError(null);
     try {
-      const datos = await pedirTodo();
-      if (sigueVigente()) aplicarDatos(datos);
+      const centro = centroReportes.current;
+      const datos = await pedirTodo(centro);
+      if (sigueVigente()) aplicarDatos(datos, centro);
     } catch (e) {
       if (sigueVigente()) setError(mensajeDeError(e));
     } finally {
@@ -323,9 +375,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRefrescando(true);
     const refresco = (async () => {
       try {
-        const datos = await pedirTodo();
+        const centro = centroReportes.current;
+        const datos = await pedirTodo(centro);
         if (!sigueVigente()) return;
-        aplicarDatos(datos);
+        aplicarDatos(datos, centro);
         setError(null);
       } catch (e) {
         if (sigueVigente()) {
@@ -342,16 +395,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return refresco;
   }, [aplicarDatos]);
 
+  /**
+   * Perdidos leyó el GPS: desde ahora los reportes se piden alrededor de la
+   * ubicación del usuario (también en los refrescos) y se traen ya. Si falla,
+   * lanza el error (la pantalla avisa) y quedan los reportes que había; el
+   * próximo refresco ya usa la ubicación nueva.
+   * @param centro ubicación del usuario
+   */
+  const buscarReportesCerca = useCallback(
+    async (centro: Coordenadas) => {
+      const sesionDeLaBusqueda = sesionActual.current;
+      centroReportes.current = centro;
+      const cercanos = await reportesService.obtenerReportes(centro);
+      if (sesionDeLaBusqueda === sesionActual.current) aplicarReportes(cercanos, centro);
+    },
+    [aplicarReportes],
+  );
+
   // Al abrir la app se busca una sesión guardada. El estado se actualiza en los
   // callbacks de la promesa, y `vigente` evita tocarlo si el provider se
   // desmontó antes de que respondan.
   useEffect(() => {
     let vigente = true;
     const sesionDeLaCarga = sesionActual.current;
-    restaurarSesion()
+    const centro = centroReportes.current;
+    restaurarSesion(centro)
       .then((datos) => {
         if (!vigente || sesionDeLaCarga !== sesionActual.current) return;
-        if (datos) aplicarDatos(datos);
+        if (datos) aplicarDatos(datos, centro);
         setSesion(datos ? 'abierta' : 'cerrada');
       })
       .catch((e: unknown) => {
@@ -564,25 +635,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /**
    * Acepta un código: el usuario queda asignado y la mascota aparece en su cuenta
-   * (se vuelven a traer las mascotas, las asignaciones, el carnet y los turnos,
-   * así la mascota nueva llega con todo lo suyo).
+   * (se vuelven a traer las mascotas, las asignaciones, el carnet, los turnos y
+   * los reportes, así la mascota nueva llega con todo lo suyo: sus reportes
+   * vienen aunque estén fuera de la zona).
    */
-  const aceptarInvitacion = useCallback(async (token: string) => {
-    const asignacion = await cuidadoresService.aceptarInvitacion(token);
-    const [m, c, r, t] = await Promise.all([
-      mascotasService.obtenerMascotas(),
-      cuidadoresService.obtenerCuidadores(),
-      registrosService.obtenerRegistros(),
-      turnosService.obtenerTurnos(),
-    ]);
-    setMascotas(m);
-    setCuidadores(c);
-    setRegistros(r);
-    setTurnos(t);
-    const mascota = m.find((x) => x.id === asignacion.mascotaId);
-    if (!mascota) throw new Error('No encontramos la mascota asignada.');
-    return mascota;
-  }, []);
+  const aceptarInvitacion = useCallback(
+    async (token: string) => {
+      const asignacion = await cuidadoresService.aceptarInvitacion(token);
+      const centro = centroReportes.current;
+      const [m, c, r, t, rep] = await Promise.all([
+        mascotasService.obtenerMascotas(),
+        cuidadoresService.obtenerCuidadores(),
+        registrosService.obtenerRegistros(),
+        turnosService.obtenerTurnos(),
+        reportesService.obtenerReportes(centro),
+      ]);
+      setMascotas(m);
+      setCuidadores(c);
+      setRegistros(r);
+      setTurnos(t);
+      aplicarReportes(rep, centro);
+      const mascota = m.find((x) => x.id === asignacion.mascotaId);
+      if (!mascota) throw new Error('No encontramos la mascota asignada.');
+      return mascota;
+    },
+    [aplicarReportes],
+  );
 
   /** Desasigna al usuario: la mascota y todo lo suyo salen de su cuenta. */
   const desasignarme = useCallback(async (mascotaId: number) => {
@@ -605,6 +683,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       recargar,
       refrescar,
+      buscarReportesCerca,
       iniciarSesion,
       registrarse,
       cerrarSesion,
@@ -633,6 +712,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       recargar,
       refrescar,
+      buscarReportesCerca,
       iniciarSesion,
       registrarse,
       cerrarSesion,
@@ -669,12 +749,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       registros,
       turnos,
       reportes,
+      zonaReportes,
       cuidadores,
       cargando,
       error,
       ...acciones,
     }),
-    [sesion, usuario, mascotas, registros, turnos, reportes, cuidadores, cargando, error, acciones],
+    [sesion, usuario, mascotas, registros, turnos, reportes, zonaReportes, cuidadores, cargando, error, acciones],
   );
 
   return (

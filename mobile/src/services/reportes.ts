@@ -4,16 +4,21 @@
  * Un reporte lo edita o lo cierra quien lo publicó o cualquier persona
  * asignada a la mascota (lo controla el servidor).
  */
+import type { Coordenadas } from '@/hooks/useUbicacion';
 import type { CambiosReporte, NuevoEncontrado, NuevoReporte, ReportePerdida } from '@/types/models';
 import { conCuerpo, pedirJson } from './http';
 
 /**
- * Lista los reportes activos de la zona.
- * Endpoint: GET /api/reportes -> 200 ReportePerdida[]
+ * Lista los reportes activos de la zona: los que están a hasta
+ * `RADIO_PERDIDOS_METROS` (10 km) del punto, más los del usuario y los de sus
+ * mascotas aunque estén lejos (los acota el servidor).
+ * Endpoint: GET /api/reportes?lat=<latitud>&lng=<longitud> -> 200 ReportePerdida[]
+ *   (400 si falta el punto o está fuera de rango)
+ * @param centro ubicación del usuario, o el centro de CABA si no dio permiso
  * @returns los reportes
  */
-export async function obtenerReportes(): Promise<ReportePerdida[]> {
-  return pedirJson<ReportePerdida[]>('/api/reportes');
+export async function obtenerReportes(centro: Coordenadas): Promise<ReportePerdida[]> {
+  return pedirJson<ReportePerdida[]>(`/api/reportes?lat=${centro.lat}&lng=${centro.lng}`);
 }
 
 /**

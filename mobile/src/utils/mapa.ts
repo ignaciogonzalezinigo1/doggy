@@ -19,6 +19,16 @@ export const DELTA_CIUDAD = 0.14;
 /** Zoom de barrio, para centrarse en un reporte o en el usuario. */
 export const DELTA_BARRIO = 0.02;
 
+/**
+ * Hasta qué distancia del usuario se muestran los reportes de Perdidos, en
+ * metros: 10 km. Lo aplica el servidor (`RADIO_PERDIDOS_METROS` de
+ * doggy-backend/src/dominio.ts, tiene que ser el mismo); acá es para el texto
+ * de la pantalla. Un perro perdido se mueve varios kilómetros, así que deja
+ * margen de sobra sobre el radio más grande que elige la familia (2 km) y
+ * cubre el barrio y los de alrededor sin traer reportes de otra ciudad.
+ */
+export const RADIO_PERDIDOS_METROS = 10_000;
+
 /** Radios de búsqueda que puede elegir el tutor, en metros. */
 export const RADIOS_BUSQUEDA = [200, 500, 1000, 2000] as const;
 /** Radio que viene elegido por defecto. */
