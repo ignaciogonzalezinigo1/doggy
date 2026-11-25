@@ -10,6 +10,11 @@
  * detalle con todo lo que se cargó al reportarlo. Modo Lista: las mismas
  * cards en vertical, que también abren el detalle. El buscador filtra en local por nombre o zona y el filtro por
  * estado. Si se deniega la ubicación, el mapa queda en CABA con un aviso.
+ * Zona: se ven los reportes a hasta 10 km (`RADIO_PERDIDOS_METROS`) de la
+ * ubicación del usuario, y los propios y los de sus mascotas aunque estén
+ * lejos (lo acota el servidor). Apenas el GPS da la posición (al entrar o con
+ * "mi ubicación") se piden los de alrededor (`buscarReportesCerca`); sin
+ * permiso, los del centro de CABA. Un texto debajo del título dice cuál.
  * El FAB pregunta qué se reporta: "Se perdió mi mascota" o "Encontré una mascota".
  * Si llega `reporteId` por params (después de reportar), se centra en ese reporte.
  * Si el reporte es de una mascota del usuario, desde el detalle se lo puede
@@ -56,6 +61,7 @@ import { useRefresco } from '@/hooks/useRefresco';
 import { Coordenadas, useUbicacion } from '@/hooks/useUbicacion';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import type { ReportePerdida } from '@/types/models';
+import { RADIO_PERDIDOS_METROS, textoRadio } from '@/utils/mapa';
 import { mensajeLaTengo } from '@/utils/mensajes';
 import {
   avisoDeMascota,
@@ -87,13 +93,16 @@ const ASOMA = 32;
 const ESPERA_MAPA_MS = 400;
 /** Espera a que termine de cerrarse la hoja de elección antes de abrir el reporte. */
 const ESPERA_CIERRE_HOJA_MS = 300;
+/** El rango de Perdidos listo para mostrar: "10 km". */
+const RANGO = textoRadio(RADIO_PERDIDOS_METROS);
 
 /**
  * Pantalla de mascotas perdidas.
  * @returns el mapa o la lista de reportes
  */
 export default function PerdidosScreen() {
-  const { reportes, usuario, mascotas, error, recargar, refrescar } = useApp();
+  const { reportes, zonaReportes, usuario, mascotas, error, recargar, refrescar, buscarReportesCerca } =
+    useApp();
   const refrescando = useRefrescando();
   const refresco = useRefresco();
   const { reporteId } = useLocalSearchParams<{ reporteId?: string }>();
@@ -181,6 +190,18 @@ export default function PerdidosScreen() {
       setDestino({ lat: reporte.lat, lng: reporte.lng });
     }
   }
+
+  // Cada posición nueva del GPS (la lectura al entrar o "mi ubicación") trae
+  // los reportes de alrededor del usuario. Se depende de `ubicacion`, que
+  // cambia solo con una lectura nueva, y no del objeto `gps` entero.
+  const { ubicacion } = gps;
+  useEffect(() => {
+    if (!ubicacion) return;
+    buscarReportesCerca(ubicacion).catch((e: unknown) => {
+      const motivo = e instanceof Error ? `${e.message} ` : '';
+      Alert.alert('No pudimos buscar cerca tuyo', `${motivo}Te seguimos mostrando los reportes que ya tenías.`);
+    });
+  }, [ubicacion, buscarReportesCerca]);
 
   // Lo imperativo (mover la cámara y el carrusel) queda en un efecto, esperando
   // a que el mapa termine de montarse.
@@ -290,7 +311,7 @@ export default function PerdidosScreen() {
     <EstadoVacio
       icon="search-off"
       titulo="No hay reportes"
-      mensaje="Probá con otro nombre o barrio, o cambiá el filtro."
+      mensaje={`No hay mascotas perdidas a menos de ${RANGO} con ese criterio. Probá con otro nombre o barrio, o cambiá el filtro.`}
     />
   );
 
@@ -323,6 +344,12 @@ export default function PerdidosScreen() {
             />
           </View>
         </View>
+        {/* El servidor trae solo los de la zona: se dice cuál, así la lista no parece incompleta. */}
+        <Text style={styles.zona}>
+          {zonaReportes === 'tu-ubicacion'
+            ? `A menos de ${RANGO} de tu ubicación`
+            : `A menos de ${RANGO} del centro de CABA`}
+        </Text>
         {buscando && (
           <Input
             icon="search"
@@ -339,7 +366,7 @@ export default function PerdidosScreen() {
           <PermissionNotice
             icon="location-off"
             titulo="Sin acceso a tu ubicación"
-            mensaje="Te mostramos CABA. Activala para ver las mascotas perdidas cerca tuyo."
+            mensaje={`Te mostramos las de CABA, a menos de ${RANGO} del centro. Activala para ver las mascotas perdidas cerca tuyo.`}
             puedePreguntar={gps.puedePreguntar}
             onReintentar={gps.obtenerUbicacion}
             onAbrirAjustes={gps.abrirAjustes}
@@ -387,7 +414,7 @@ export default function PerdidosScreen() {
             {visibles.length === 0 && error ? (
               vacio
             ) : visibles.length === 0 ? (
-              <Text style={styles.sinResultados}>No hay reportes con ese criterio.</Text>
+              <Text style={styles.sinResultados}>No hay reportes a menos de {RANGO} con ese criterio.</Text>
             ) : (
               <FlatList
                 ref={carruselRef}
@@ -539,6 +566,10 @@ const styles = StyleSheet.create({
     ...typography.headlineMd,
     color: colors.onSurface,
     flexShrink: 1,
+  },
+  zona: {
+    ...typography.bodySm,
+    color: colors.onSurfaceVariant,
   },
   acciones: {
     flexDirection: 'row',
