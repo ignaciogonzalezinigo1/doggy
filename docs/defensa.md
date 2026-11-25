@@ -174,6 +174,10 @@ Solo dónde está (el mini mapa, precargado con el GPS) y un comentario opcional
 No. El perdido sigue activo hasta que la familia la tiene de vuelta, porque encontrarla no es recuperarla. Los dos activos son un reencuentro: en el mapa, un pin verde con tilde y "¡Reencuentro!" en el lugar del encontrado (donde está ahora); en el detalle, cuándo y dónde se perdió.
 → `doggy/mobile/src/utils/selectores.ts` (`reencuentrosPorReporte`), `doggy/mobile/src/components/perdidos/DetalleReporte.tsx`
 
+**¿Por qué Perdidos muestra solo los reportes a 10 km?** *(corrección del final)*
+La lista se acota por distancia al usuario. Lo hace el servidor, así no viajan los reportes de todo el país: `GET /api/reportes?lat=&lng=` filtra primero por una caja de latitud y longitud (SQLite no tiene funciones geográficas) y después descarta las esquinas con la distancia real (haversine). Elegimos 10 km porque un perro perdido se mueve varios kilómetros (es cinco veces el radio más grande que elige la familia), cubre el barrio y los de alrededor sin mezclar otra ciudad, y desde el Obelisco casi toda CABA. Sin permiso de ubicación se usan los 10 km alrededor del Obelisco, el mismo centro que ya mostraba el mapa. Los reportes propios y los de tus mascotas vienen siempre, aunque estén lejos, porque de ellos salen los avisos de Mis Mascotas; y con ellos los demás reportes de esas mascotas, así un reencuentro (perdido en un lado, encontrado en otro) no se parte. Debajo del título dice "A menos de 10 km de tu ubicación", para que la lista no parezca incompleta.
+→ `doggy-backend/src/rutas/reportes.ts` (`reportesDeLaZona`), `doggy-backend/src/lib/distancias.ts`, `doggy/mobile/src/context/AppContext.tsx` (`buscarReportesCerca`), `doggy/mobile/app/(tabs)/perdidos.tsx`
+
 **¿Por qué un solo pin por reencuentro, y en el lugar del encontrado?**
 Para que el mapa no muestre la misma mascota dos o más veces (perdida en un lugar y encontrada en otro, o encontrada por dos personas). Se dibuja el encontrado más reciente porque es donde está ahora la mascota, que es lo que le sirve a la familia; el lugar donde se perdió queda en el detalle. Aparece con los filtros "Todos" y "Encontrados". Los encontrados sin mascota, o de mascotas no perdidas, se dibujan teal como siempre.
 → `doggy/mobile/src/utils/selectores.ts` (`reportesDePerdidos`), `doggy/mobile/app/(tabs)/perdidos.tsx`
@@ -237,6 +241,10 @@ El `fetch` de SDK 58 (`expo/fetch`) no acepta la parte clásica `{ uri, name, ty
 **¿Qué pasa con la foto vieja cuando se reemplaza?**
 El servidor borra el archivo si ninguna otra fila lo usa (`borrarFotoSiHuerfana`). Cerrar un reporte no borra su foto: queda como historial.
 → `doggy-backend/src/lib/fotos.ts`
+
+**¿Y las fotos que se subieron pero nunca se guardaron?** *(corrección del final)*
+La app sube la foto antes de guardar el formulario. Si después el usuario cancela, el guardado falla o reintenta (y sube otra copia), ese archivo queda en `uploads/` sin que nada lo use. Las borra un barrido del servidor, `limpiarFotosHuerfanas`: lista la carpeta, junta todas las fotos que usa la base (mascotas, usuarios, reportes, también los cerrados, y etiquetas del carnet) y borra las demás si tienen más de una hora. La hora es el margen para no borrar una foto que la app acaba de subir y está por guardar (la subida espera como mucho 30 s). Corre al levantar la API, cada hora y con `npm run fotos:limpiar`. Se hace en el servidor y no desde la app porque la app puede cerrarse o quedarse sin red antes de avisar, y el servidor es el único que sabe qué está en uso.
+→ `doggy-backend/src/lib/fotos.ts` (`limpiarFotosHuerfanas`), `doggy-backend/src/index.ts`, `doggy-backend/scripts/limpiar-fotos.ts`
 
 ## Gestos
 
@@ -340,11 +348,12 @@ Antes de la presentación, en `doggy-backend`:
 1. En el `.env`, `TELEFONO_DEMO_SOFIA=5491…` con el celular donde va a estar abierta la cuenta de Sofía (sin + ni espacios: 54, el 9, la característica sin 0 y el número sin 15). Así "Escribirle por WhatsApp" abre ese celular. Si queda vacía, Sofía tiene un número inventado.
 2. `npm run db:reset` (deja la demo limpia y las fechas al día). Contraseña de todos: `doggy1234`.
 3. Dos celulares: uno con **Sofía** (`sofia.romero@mail.com`) y otro con **Lucía** (`lucia.gomez@mail.com`).
+4. Perdidos muestra los reportes a menos de 10 km del celular. Pipa está en Caballito, así que el celular de Sofía tiene que estar en CABA o sin permiso de ubicación (en ese caso usa el Obelisco). Si la presentación es lejos de CABA, negar el permiso de ubicación a Expo Go en el celular de Sofía. Lo propio y lo de sus mascotas (Milo, Luna) se ve igual desde cualquier lado.
 
 Demo en vivo:
 
 1. **Sofía**, Mis Mascotas: "Alguien encontró a Milo. ¿Se perdió Milo?" (Julián escaneó su chapita), con la foto, dónde y cuándo, el comentario y "Escribirle por WhatsApp" a Julián. Tocar "No, está conmigo": el aviso se cierra ("No se había perdido").
-2. **Sofía**, Perdidos: Pipa, de Julián, en el mapa. Después, "Se perdió mi mascota" → Luna → marcar dónde se la vio y el radio → publicar: Luna aparece en mostaza.
+2. **Sofía**, Perdidos: Pipa, de Julián, en el mapa, y debajo del título "A menos de 10 km de tu ubicación". Después, "Se perdió mi mascota" → Luna → marcar dónde se la vio y el radio → publicar: Luna aparece en mostaza.
 3. **Lucía**, "Encontré una mascota": arranca en el escáner. Escanear el QR de Luna desde el perfil de Luna en el celular de Sofía. Tarjeta de solo lectura (foto, nombre, raza, "Su familia: Sofía"), marcar dónde está, un comentario y "Avisarle a su familia". En Perdidos, Luna pasa a un pin verde de "¡Reencuentro!" y su card ofrece "Escribirle por WhatsApp" a Sofía, que abre el chat con el mensaje armado.
 4. **Sofía**, refrescar Mis Mascotas: "¡Encontraron a Luna!" con el comentario de Lucía y su WhatsApp. "Ya volvió a casa": se cierran el perdido y el encontrado ("Devuelta a su familia") y Luna sale del mapa.
 5. **Sofía**, Perfil → "Tengo un código de asignación" → `TOBY2026`: Toby se suma como invitada (lo ve y lo edita, pero no genera códigos). En Familia y Cuidadores, Julián aparece como paseador de Roco, con "Quitar".

@@ -178,7 +178,7 @@ Sofía abre el perfil de Luna, toca "Reportar pérdida", marca en el mini mapa d
 11. **Pantalla — `handlePublicar`.** Vibra con `Haptics.notificationAsync(Success)`, cierra el modal y navega a `/perdidos` con `reporteId` en los params. Si algo falló, en cambio, muestra un `Alert` con el mensaje del servidor y el modal queda abierto con los datos cargados.
 12. **Mapa — `mobile/app/(tabs)/perdidos.tsx` y `src/components/perdidos/MapaReportes.tsx`.** Perdidos lee `reporteId` con `useLocalSearchParams`, busca el reporte en `reportes` del contexto, lo selecciona y centra la cámara con `mapaRef.current?.centrar(...)`. `MapaReportes` dibuja un `ReporteMarker` mostaza por cada reporte y, para el seleccionado, el `Circle` de 500 m alrededor del pin. El reporte también aparece primero en el carrusel de cards.
 
-Como el reporte quedó en la base, cualquier otro usuario lo ve en su mapa la próxima vez que se cargan los reportes (`GET /api/reportes` devuelve los activos de todos).
+Como el reporte quedó en la base, cualquier otro usuario que esté a menos de 10 km lo ve en su mapa la próxima vez que se cargan los reportes (`GET /api/reportes?lat=&lng=` devuelve los activos alrededor de su ubicación, más los suyos y los de sus mascotas aunque estén lejos).
 
 ### Sesión
 
